@@ -1,3 +1,5 @@
+(function(window) {
+
 function ChainLoading() {
     var currentLevel = 0, //the current level we are on to maintain the deferred order
         lastCompletedLevel = 0, //the last index to be resolved/rejected
@@ -252,4 +254,13 @@ function ChainLoading() {
     };
 }
 
-module.exports = ChainLoading;
+if (typeof module !== "undefined") {
+    module.exports = ChainLoading;
+} else {
+    window.ChainLoading = ChainLoading;
+
+    if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
+        define(function() { return ChainLoading; });
+    }
+}
+}(this));
