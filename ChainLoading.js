@@ -1,4 +1,31 @@
 (function(window) {
+    var arrayIndexOf = Array.prototype.indexOf;
+    if (!arrayIndexOf) {
+        //From: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf#Polyfill
+        arrayIndexOf = function(searchElement, fromIndex) {
+            if (this === undefined || this === null) { throw new TypeError('"this" is null or not defined'); }
+            var length = this.length >>> 0; // Hack to convert object.length to a UInt32
+            fromIndex = +fromIndex || 0;
+
+            if (Math.abs(fromIndex) === Infinity) {
+                fromIndex = 0;
+            }
+
+            if (fromIndex < 0) {
+                fromIndex += length;
+                if (fromIndex < 0) {
+                    fromIndex = 0;
+                }
+            }
+            for (;fromIndex < length; fromIndex++) {
+                if (this[fromIndex] === searchElement) {
+                    return fromIndex;
+                }
+            }
+            return -1;
+        };
+    }
+
     function ChainLoading() {
         var currentLevel = 0, //the current level we are on to maintain the deferred order
             lastCompletedLevel = 0, //the last index to be resolved/rejected
@@ -203,7 +230,7 @@
             return function() {
                 //in case someone did chain.done(chain.bind(...)) or
                 //the deferred is already complete
-                if (this === self || completedDeferreds.indexOf(this) > -1) {
+                if (this === self || arrayIndexOf.call(completedDeferreds, this) > -1) {
                     func.apply(context, curried.concat(Array.prototype.slice.call(arguments)));
                 } else {
                     //this is the actual deferred
