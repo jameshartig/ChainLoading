@@ -187,6 +187,7 @@
             levelTodos[currentLevel] = []; //prepare the todo array
             setupDeferreds(Array.prototype.slice.call(arguments)); //each argument is a deferred
             checkLevelAndContinue(currentLevel);
+            return this;
         };
 
         //adds deferreds to the same level and doesn't increase it (useful for parallel operations where return order doens't matter)
