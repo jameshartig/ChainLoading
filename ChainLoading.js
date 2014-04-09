@@ -1,29 +1,28 @@
 (function(window) {
-    var arrayIndexOf = Array.prototype.indexOf,
-        inf = Infinity, undefined;
-    if (!arrayIndexOf) {
-        //From: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf#Polyfill
-        arrayIndexOf = function(searchElement, fromIndex) {
-            if (this === undefined || this === null) { throw new TypeError('"this" is null or not defined'); }
-            var length = this.length >>> 0; // Hack to convert object.length to a UInt32
-            fromIndex = +fromIndex || 0;
+    var CompletedMap = window.WeakMap,
+        inf = Infinity,
+        undefined;
 
-            if (Math.abs(fromIndex) === inf) {
-                fromIndex = 0;
-            }
-
-            if (fromIndex < 0) {
-                fromIndex += length;
-                if (fromIndex < 0) {
-                    fromIndex = 0;
+    //polyfill for WeakMap (we only need set/get)
+    if (CompletedMap === undefined) {
+        CompletedMap = function() {
+            var arr = [];
+            this.has = function(k) {
+                var i = -1;
+                if (k != null) { //only search if they actually gave us something to search for
+                    i = arr.length - 1;
                 }
-            }
-            for (;fromIndex < length; fromIndex++) {
-                if (this[fromIndex] === searchElement) {
-                    return fromIndex;
+                while (i >= 0) {
+                    if (arr[i] === k) {
+                        break;
+                    }
+                    i--;
                 }
-            }
-            return -1;
+                return i > -1;
+            };
+            this.set = function(k) {
+                arr.push(k);
+            };
         };
     }
 
@@ -34,7 +33,7 @@
             deferredCallbacks = [], //callback objects for each deferred
             failedLevel = inf, //the level at which we have failed. everything AFTER this level will be rejected
             onFailCallbacks = [], //callbacks that are called when ANY deferred fails
-            completedDeferreds = [], //deferreds that have completed, used for binds that happened after a push/add
+            completedDeferreds = new CompletedMap(), //deferreds that have completed, used for binds that happened after a push/add
             self = this;
 
         /**
@@ -87,7 +86,7 @@
                 functionsToCall = [];
             if (!cleanUp) {
                 //if we actually have a completed deferred, then we need to add it here so bind functions later still know its already done
-                completedDeferreds.push(deferred);
+                completedDeferreds.set(deferred);
             }
             for (var i = 0; i < deferredCallbacks.length; i++) {
                 if (deferredCallbacks[i].d === deferred) {
@@ -226,9 +225,8 @@
         this.bind = function(func, context) {
             var curried = Array.prototype.slice.call(arguments, 2);
             return function() {
-                //in case someone did chain.done(chain.bind(...)) or
-                //the deferred is already complete
-                if (this === self || arrayIndexOf.call(completedDeferreds, this) > -1) {
+                //in case someone did chain.done(chain.bind(...)) or the deferred is already complete
+                if (this === self || completedDeferreds.has(this)) {
                     func.apply(context, curried.concat(Array.prototype.slice.call(arguments)));
                 } else {
                     //this is the actual deferred

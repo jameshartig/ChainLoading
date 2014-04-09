@@ -441,3 +441,92 @@ exports.singleFailAfterCallback = function(test) {
     test.equal(count, 2);
     test.done();
 };
+
+exports.bindBeforeAfterCompleted = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        order = 0;
+
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 1);
+    })));
+
+    d1.done(chain.bind(function() {
+        test.equal(order++, 2);
+    }));
+    d1.resolve();
+    d1.done(chain.bind(function() {
+        test.equal(order++, 3);
+    }));
+    d2.resolve();
+    d1.done(chain.bind(function() {
+        test.equal(order++, 4);
+    }));
+    test.equal(order, 5);
+    test.done();
+};
+
+/*
+
+THIS IS BROKEN AND A KNOWN CAVEAT
+
+exports.pushAfterCompleted = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        order = 0;
+
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 1);
+    })));
+
+    d1.resolve();
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 2);
+    })));
+    chain.done(function() {
+        test.equal(order++, 3);
+    });
+    d2.resolve();
+    test.equal(order, 4);
+    test.done();
+};
+
+*/
+
+//if we fix the above caveat then this test will break (unless magic) because it's utilizing the caveat
+exports.doneAfterCompletedWithCaveat = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        order = 0;
+
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 2);
+    })));
+
+    d1.resolve();
+    d1.done(chain.bind(function() {
+        test.equal(order++, 1);
+    }));
+    chain.done(function() {
+        test.equal(order++, 3);
+    });
+    d2.resolve();
+    test.equal(order, 4);
+    test.done();
+};
