@@ -1,10 +1,9 @@
 #chainLoading#
-Allows you to chain together deferreds or functions and control the order at which they call your callbacks. The order is controlled by "levels". You can can have many deferreds or callbacks on each "level".
+Allows you to chain together deferreds or functions and control the order at which they call your callbacks. The benefit being that all methods are called immediately and the callbacks are called in the order you want. This can make loading a page that requires multiple API calls much faster since the API calls will happen in parallel.
+
+The order is controlled by "levels". You can can have many deferreds or callbacks on each "level".
 **The order within in each "level" is NOT guaranteed**, however, each "level" is guaranteed to be called sequentially.
-
-The benefit being that all methods are called immediately and the callbacks are called in the order you want. This can make loading a page that requires multiple API calls much faster since the API calls will happen in parallel.
-
-_If a deferred is rejected, none of the callbacks in levels after it in the chain will be called unless you used one of the *ignore* methods._
+If a deferred is rejected, none of the callbacks in levels after it in the chain will be called unless you used one of the *ignore* methods.
 
 --------------------------
 
