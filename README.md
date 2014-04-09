@@ -1,8 +1,10 @@
 #chainLoading#
-Allows you to chain together deferreds or functions and control the order at which they call your callbacks. The benefit being that all methods are called immediately and the callbacks are called in the order you want. This can make loading a page that requires multiple API calls much faster since the API calls will happen in parallel.
+Allows you to chain together deferreds or functions and control the order at which they call your callbacks.
+The benefit being that all methods are called immediately and the callbacks are called in the order you want.
+This can make loading a page that requires multiple API calls much faster since the API calls will happen in parallel.
 
 The order is controlled by "levels". You can can have many deferreds or callbacks on each "level".
-**The order within in each "level" is NOT guaranteed**, however, each "level" is guaranteed to be called sequentially.
+Each "level" is guaranteed to be called sequentially, but deferreds in the same "level" are called upon completion.
 If a deferred is rejected, none of the callbacks in levels after it in the chain will be called unless you used one of the *ignore* methods.
 
 --------------------------
@@ -14,12 +16,16 @@ Returns a new chainLoading object.
 ### push(deferred1, ..., deferredn) ###
 Allows you to add deferreds to the next "level". All the deferreds passed as arguments will be added to the same level.
 
-**For the deferred's done/fail/always methods, it's imperative that you use the built-in bind() method below for your callbacks!**
+**For the deferred's done/fail/always methods, it's imperative that you use the chain's bind() method below for your callbacks!**
+```JS
+chain.push(myDfd.done(chain.bind(myFunction, this)));
+```
 
 ### add(deferred1, ..., deferredn) ###
-Allows you to add deferreds to the current "level". Remember the order is not guaranteed within a level. This is useful if you don't care about the order for some deferreds and don't want to send them all in one push call.
+Allows you to add deferreds to the current "level". Remember the order is not guaranteed within a level.
+This is useful when you have a group of deferreds that are independent of each other but all depend on an earlier "level".
 
-**For the deferred's done/fail/always methods, it's imperative that you use the built-in bind() method below for your callbacks!**
+**For the deferred's done/fail/always methods, it's imperative that you use the chain's bind() method below for your callbacks!**
 
 ### bind(func, context, [arg1, ..., argn]) ###
 Required method for adding callbacks to the deferreds passed to push/add. Even if you have nothing to bind to, you must use this method to add callbacks.
