@@ -40,8 +40,7 @@ Adds a function to the next (default) or current level. Useful at the end of all
 Alias for `after()`
 
 ### fail(func) ###
-Func is called whenever ANY of the deferreds on ANY level fail. Useful for knowing if any part of the chain failed.
-**You should add a fail callback BEFORE adding any deferreds in the event that those deferreds fail immediately**
+Func is called whenever ANY of the non-ignored deferreds on ANY level fail. Useful for knowing if any part of the required chain failed.
 
 --------------------------
 

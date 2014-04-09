@@ -1,5 +1,6 @@
 (function(window) {
-    var arrayIndexOf = Array.prototype.indexOf;
+    var arrayIndexOf = Array.prototype.indexOf,
+        inf = Infinity, undefined;
     if (!arrayIndexOf) {
         //From: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf#Polyfill
         arrayIndexOf = function(searchElement, fromIndex) {
@@ -7,7 +8,7 @@
             var length = this.length >>> 0; // Hack to convert object.length to a UInt32
             fromIndex = +fromIndex || 0;
 
-            if (Math.abs(fromIndex) === Infinity) {
+            if (Math.abs(fromIndex) === inf) {
                 fromIndex = 0;
             }
 
@@ -31,7 +32,7 @@
             lastCompletedLevel = 0, //the last index to be resolved/rejected
             levelTodos = {0: []}, //pending deferreds that already were resolved/rejected where the keys are the index
             deferredCallbacks = [], //callback objects for each deferred
-            failedLevel = Infinity, //the level at which we have failed. everything AFTER this level will be rejected
+            failedLevel = inf, //the level at which we have failed. everything AFTER this level will be rejected
             onFailCallbacks = [], //callbacks that are called when ANY deferred fails
             completedDeferreds = [], //deferreds that have completed, used for binds that happened after a push/add
             self = this;
@@ -82,18 +83,18 @@
 
         //finds all functions for this deferred and calls them (if appropriate); then removes them
         function completeDeferred(deferredObj, cleanUp) {
-            var deferred = deferredObj.deferred,
+            var deferred = deferredObj.d,
                 functionsToCall = [];
             if (!cleanUp) {
                 //if we actually have a completed deferred, then we need to add it here so bind functions later still know its already done
                 completedDeferreds.push(deferred);
             }
             for (var i = 0; i < deferredCallbacks.length; i++) {
-                if (deferredCallbacks[i].deferred === deferred) {
+                if (deferredCallbacks[i].d === deferred) {
 
                     //only call callback if the state applies
                     if (!cleanUp) {
-                        if (deferredCallbacks[i].state === deferredObj.state) {
+                        if (deferredCallbacks[i].s === deferredObj.s) {
                             functionsToCall.push(deferredCallbacks[i].func);
                         }
                     }
@@ -123,20 +124,14 @@
         }
 
         //calls all the onFailCallbacks
-        function onFail(level, ignore) {
-            if (!ignore) {
-                failedLevel = Math.min(failedLevel, level); //make sure we save where we failed so we know which deferreds later we can call
-            }
+        function onFail(level) {
+            failedLevel = Math.min(failedLevel, level); //make sure we save where we failed so we know which deferreds later we can call
             for (var i = 0, l = onFailCallbacks.length; i < l; i++) {
                 onFailCallbacks[i].call(self);
             }
             onFailCallbacks = [];
 
-            if (ignore) { //don't clean up previous levels
-                return;
-            }
-
-            //clean up levels after this one in case we have pending deferreds or callbacks=
+            //clean up levels after this one in case we have pending deferreds or callbacks
             while (level++ < currentLevel) {
                 cleanupLevel(level);
             }
@@ -147,17 +142,19 @@
                 levelTodos[myLevel].pop(); //remove saved spot
 
                 if (myLevel <= failedLevel) { //if something BEFORE this deferred failed, then we can't resolve this one
-                    levelTodos[myLevel].unshift({deferred: this, state: "resolved", args: Array.prototype.slice.call(arguments)}); //add a todo for this level
+                    levelTodos[myLevel].unshift({d: this, s: "resolved", args: Array.prototype.slice.call(arguments)}); //add a todo for this level
                 }
                 checkLevelAndContinue(myLevel);
             });
             d.fail(function() { //"this" is the original deferred
-                onFail(myLevel, ignoreFails); //make sure to immediately call failed callbacks
+                if (!ignoreFails) {
+                    onFail(myLevel); //make sure to immediately call failed callbacks
+                }
 
                 levelTodos[myLevel].pop(); //remove saved spot
 
                 if (myLevel <= failedLevel) {
-                    levelTodos[myLevel].unshift({deferred: this, state: "rejected", args: Array.prototype.slice.call(arguments)});  //add a todo for this level
+                    levelTodos[myLevel].unshift({d: this, s: "rejected", args: Array.prototype.slice.call(arguments)});  //add a todo for this level
                 }
 
                 checkLevelAndContinue(myLevel);
@@ -237,7 +234,7 @@
                     var f = function() {
                         func.apply(context, curried.concat(Array.prototype.slice.call(arguments)));
                     };
-                    deferredCallbacks.push({deferred: this, func: f, state: this.state()});
+                    deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
             };
         };
@@ -267,7 +264,7 @@
         };
         //fail is called when ANY of the deferreds fail no matter when this was called
         this.fail = function(func) {
-            if (failedLevel < Infinity) {
+            if (failedLevel < inf) {
                 func.call(self);
             } else {
                 onFailCallbacks.push(func);
