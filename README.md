@@ -51,5 +51,5 @@ Func is called whenever ANY of the non-ignored deferreds on ANY level fail. Usef
 
 ## Caveats ##
 
-* Works with 1.11.0 and 2.1.0 but is not guaranteed to work with ALL future versions. This relies on the deferred calling done/fail with the context of the deferred itself.
+* Works with jQuery 1.11.0 and 2.1.0 but is not guaranteed to work with ALL future versions. This relies on the deferred calling done/fail with the context of the deferred itself.
 * If you add the same deferred object to the chain multiple times the done/fail callbacks will be called when the FIRST occurence of the deferred resolves/rejects in the chain. See the tests.js file for an example.
