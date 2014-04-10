@@ -49,6 +49,19 @@ Func is called whenever ANY of the non-ignored deferreds on ANY level fail. Usef
 
 --------------------------
 
+## Example ##
+
+```JS
+var chain = new ChainLoading();
+chain.fail(function() {
+    //render failure page
+});
+chain.push(loadUserProfileInfo());
+chain.push(loadUserMusic());
+chain.push(loadTemplate().done(chain.bind(renderTemplate, this)));
+```
+--------------------------
+
 ## Caveats ##
 
 * Works with jQuery 1.11.0 and 2.1.0 but is not guaranteed to work with ALL future versions. This relies on the deferred calling done/fail with the context of the deferred itself.
