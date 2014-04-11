@@ -47,6 +47,10 @@ Alias for `after()`
 ### fail(func) ###
 Func is called whenever ANY of the non-ignored deferreds on ANY level fail. Useful for knowing if any part of the required chain failed.
 
+### fork() ###
+Returns a NEW chain that's dependent on the current level of this chain but will then run independently of this chain.
+You can bring the 2 back together using push/add later if you choose.
+
 --------------------------
 
 ## Example ##

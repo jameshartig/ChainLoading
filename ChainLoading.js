@@ -274,6 +274,11 @@
         this.always = function(func) {
             return this.fail(func).done(func);
         };
+
+        //makes a new chain that's initially based off the of the current level of this chain
+        this.fork = function() {
+            return (new ChainLoading()).push(this);
+        };
     }
 
     if (typeof module !== "undefined") {

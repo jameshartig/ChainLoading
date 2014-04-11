@@ -530,3 +530,59 @@ exports.doneAfterCompletedWithCaveat = function(test) {
     test.equal(order, 4);
     test.done();
 };
+
+exports.completedBeforeAdded = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        order = 0;
+
+    d1.resolve();
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d1);
+    d1.done(chain.bind(function() {
+        test.equal(order++, 1);
+    }));
+
+    d2.resolve();
+    chain.done(function() {
+        test.equal(order++, 2);
+    });
+    test.equal(order, 3);
+    test.done();
+};
+
+exports.forkMe = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        d3 = new $.Deferred(),
+        order = 0, chain2;
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain2 = chain.fork();
+    chain2.push(d1.done(chain2.bind(function() {
+        test.equal(order++, 2);
+    })));
+
+    //this is a separate chain now so its technically dependant on the order of the resolve
+    chain.push(d3.done(chain.bind(function() {
+        test.equal(order++, 1);
+    })));
+    chain.push(chain2);
+    chain.done(function() {
+        test.equal(order++, 3);
+    });
+
+    d2.resolve();
+    d3.resolve();
+    d1.resolve();
+    test.equal(order, 4);
+    test.done();
+};
