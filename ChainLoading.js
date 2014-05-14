@@ -1,6 +1,7 @@
 (function(window) {
     var CompletedMap = window.WeakMap,
         inf = Infinity,
+        slice = [].slice, //from: http://stackoverflow.com/questions/120804/difference-between-array-slice-and-array-slice/121302#121302
         undefined;
 
     //polyfill for WeakMap (we only need set/get)
@@ -141,7 +142,7 @@
                 levelTodos[myLevel].pop(); //remove saved spot
 
                 if (myLevel <= failedLevel) { //if something BEFORE this deferred failed, then we can't resolve this one
-                    levelTodos[myLevel].unshift({d: this, s: "resolved", args: Array.prototype.slice.call(arguments)}); //add a todo for this level
+                    levelTodos[myLevel].unshift({d: this, s: "resolved", args: slice.call(arguments)}); //add a todo for this level
                 }
                 checkLevelAndContinue(myLevel);
             });
@@ -153,7 +154,7 @@
                 levelTodos[myLevel].pop(); //remove saved spot
 
                 if (myLevel <= failedLevel) {
-                    levelTodos[myLevel].unshift({d: this, s: "rejected", args: Array.prototype.slice.call(arguments)});  //add a todo for this level
+                    levelTodos[myLevel].unshift({d: this, s: "rejected", args: slice.call(arguments)});  //add a todo for this level
                 }
 
                 checkLevelAndContinue(myLevel);
@@ -184,7 +185,7 @@
         this.push = this.next = function() {
             currentLevel++; //advance currentLevel
             levelTodos[currentLevel] = []; //prepare the todo array
-            setupDeferreds(Array.prototype.slice.call(arguments)); //each argument is a deferred
+            setupDeferreds(slice.call(arguments)); //each argument is a deferred
             checkLevelAndContinue(currentLevel);
             return this;
         };
@@ -195,7 +196,7 @@
                 currentLevel = 1;
                 levelTodos[currentLevel] = [];
             }
-            setupDeferreds(Array.prototype.slice.call(arguments)); //each argument is a deferred
+            setupDeferreds(slice.call(arguments)); //each argument is a deferred
             return this;
         };
 
@@ -204,7 +205,7 @@
         this.pushIgnoreFail = this.nextIgnoreFail = function() {
             currentLevel++; //advance currentLevel
             levelTodos[currentLevel] = []; //prepare the todo array
-            setupDeferreds(Array.prototype.slice.call(arguments), true); //each argument is a deferred
+            setupDeferreds(slice.call(arguments), true); //each argument is a deferred
             checkLevelAndContinue(currentLevel);
             return this;
         };
@@ -216,22 +217,22 @@
                 currentLevel = 1;
                 levelTodos[currentLevel] = [];
             }
-            setupDeferreds(Array.prototype.slice.call(arguments), true); //each argument is a deferred
+            setupDeferreds(slice.call(arguments), true); //each argument is a deferred
             checkLevelAndContinue(currentLevel);
             return this;
         };
 
         //emulate bind but we need the context from the deferred. This is REQUIRED for each deferred's callbacks
         this.bind = function(func, context) {
-            var curried = Array.prototype.slice.call(arguments, 2);
+            var curried = slice.call(arguments, 2);
             return function() {
                 //in case someone did chain.done(chain.bind(...)) or the deferred is already complete
                 if (this === self || completedDeferreds.has(this)) {
-                    func.apply(context, curried.concat(Array.prototype.slice.call(arguments)));
+                    func.apply(context, curried.concat(slice.call(arguments)));
                 } else {
                     //this is the actual deferred
                     var f = function() {
-                        func.apply(context, curried.concat(Array.prototype.slice.call(arguments)));
+                        func.apply(context, curried.concat(slice.call(arguments)));
                     };
                     deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
