@@ -62,6 +62,7 @@ chain.fail(function() {
 });
 chain.push(loadUserProfileInfo());
 chain.push(loadUserMusic());
+//render the template once we know we have the profile and music
 chain.push(loadTemplate().done(chain.bind(renderTemplate, this)));
 ```
 --------------------------
