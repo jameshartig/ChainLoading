@@ -228,12 +228,23 @@
             return function() {
                 //in case someone did chain.done(chain.bind(...)) or the deferred is already complete
                 if (this === self || completedDeferreds.has(this)) {
-                    func.apply(context, curried.concat(slice.call(arguments)));
+                    if (curried.length > 0) {
+                        func.apply(context, curried.concat(slice.call(arguments)));
+                    } else {
+                        func.apply(context, slice.call(arguments));
+                    }
                 } else {
                     //this is the actual deferred
-                    var f = function() {
-                        func.apply(context, curried.concat(slice.call(arguments)));
-                    };
+                    var f;
+                    if (curried.length > 0) {
+                        f = function() {
+                            func.apply(context, curried.concat(slice.call(arguments)));
+                        };
+                    } else {
+                        f = function() {
+                            func.apply(context, slice.call(arguments));
+                        };
+                    }
                     deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
             };
