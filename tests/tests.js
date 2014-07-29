@@ -654,10 +654,11 @@ exports.storeApplyArgsStupidDone = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred();
 
+    //we do NOT support currying for storeArgs
     chain.push(d1.done(chain.storeArgs(1)));
-    chain.done(chain.applyArgs(function(one, two) {
+    chain.done(chain.applyArgs(function(one, undef) {
         test.equal(one, 1);
-        test.equal(two, 2);
+        test.equal(undef, undefined);
         test.done();
     }));
 
@@ -680,5 +681,25 @@ exports.storeApplyArgsCurryTwoDfds = function(test) {
     }, null, 3));
 
     d2.resolve(2);
+    d1.resolve(1);
+};
+
+exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    d2.resolve(2);
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.storeArgs));
+
+    chain.done(chain.applyArgs(function(one, two, three) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.done();
+    }, null, 3));
+
     d1.resolve(1);
 };
