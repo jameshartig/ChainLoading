@@ -35,6 +35,7 @@
             failedLevel = inf, //the level at which we have failed. everything AFTER this level will be rejected
             onFailCallbacks = [], //callbacks that are called when ANY deferred fails
             completedDeferreds = new CompletedMap(), //deferreds that have completed, used for binds that happened after a push/add
+            storedArgs = [], //todo: it'd be cool to not make this always be an empty array and initialize it to something else
             self = this;
 
         /**
@@ -222,32 +223,71 @@
             return this;
         };
 
-        //emulate bind but we need the context from the deferred. This is REQUIRED for each deferred's callbacks
-        this.bind = function(func, context) {
-            var curried = slice.call(arguments, 2);
+        var internalBind = function(func, context, curried) {
             return function() {
-                //in case someone did chain.done(chain.bind(...)) or the deferred is already complete
-                if (this === self || completedDeferreds.has(this)) {
-                    if (curried.length > 0) {
-                        func.apply(context, curried.concat(slice.call(arguments)));
-                    } else {
+                var f;
+                //building function all the time so we don't duplicate code (only 5-10% slower http://jsperf.com/concat-vs-length)
+                if (curried === undefined) { //can't just check curried.length since it might be storedArgs which gets larger later
+                    f = function() {
                         func.apply(context, slice.call(arguments));
-                    }
+                    };
                 } else {
-                    //this is the actual deferred
-                    var f;
-                    if (curried.length > 0) {
-                        f = function() {
-                            func.apply(context, curried.concat(slice.call(arguments)));
-                        };
-                    } else {
-                        f = function() {
-                            func.apply(context, slice.call(arguments));
-                        };
-                    }
+                    f = function() {
+                        func.apply(context, curried.concat(slice.call(arguments)));
+
+                        //easy way of emptying array (from: http://stackoverflow.com/questions/1232040/how-to-empty-an-array-in-javascript/1234337#1234337)
+                        curried.length = 0;
+                    };
+                }
+                //this is the actual deferred unless someone did chain.done(chain.bind(...))
+                if (this === self || completedDeferreds.has(this)) {
+                    f();
+                } else {
                     deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
             };
+        };
+
+        //emulate bind but we need the context from the deferred. This is REQUIRED for each deferred's callbacks
+        this.bind = function(func, context) {
+            if (arguments.length < 3) {
+                return internalBind(func, context);
+            } else {
+                return internalBind(func, context, slice.call(arguments, 2));
+            }
+        };
+
+        //this is basically bind but will apply the storedArgs as if they were curried
+        this.applyArgs = function(func, context) {
+            if (arguments.length < 3) {
+                //optimize for usual case
+                return internalBind(func, context, storedArgs);
+            } else {
+                var curried = slice.call(arguments, 2);
+                return function() {
+                    var args = storedArgs.concat(curried).concat(slice.call(arguments));
+                    //easy way of emptying array (from: http://stackoverflow.com/questions/1232040/how-to-empty-an-array-in-javascript/1234337#1234337)
+                    storedArgs.length = 0;
+                    internalBind(func, context, args).call(this);
+                };
+            }
+        };
+
+        this.storeArgs = function() {
+            //this is the actual deferred unless someone did chain.done(chain.storeArgs(...))
+            var args = slice.call(arguments),
+                storeArgs = function() {
+                    //cannot use concat on storedArgs since we need ref to be the same for internalBind to work correctly
+                    storedArgs.push.apply(storedArgs, args);
+                };
+            if (this === self) {
+                //if someone did chain.done(chain.storeArgs()), then we want to apply those WHEN the chain gets to our level not immediately (now)
+                return storeArgs;
+            } else if (completedDeferreds.has(this)) {
+                storeArgs();
+            } else {
+                deferredCallbacks.push({d: this, func: storeArgs, s: this.state()});
+            }
         };
 
         //allow functions to be run at the next level

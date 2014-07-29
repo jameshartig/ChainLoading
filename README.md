@@ -12,13 +12,14 @@ If a deferred is rejected, none of the callbacks in levels after it in the chain
 ## _.chainLoading() ##
 Returns a new chainLoading object.
 
-## Prototype methods to add new deferreds to the chain ##
+## Methods to add new deferreds to the chain ##
+
 ### push(deferred1, ..., deferredn) ###
 Allows you to add deferreds to the next "level". All the deferreds passed as arguments will be added to the same level.
 
 **For the deferred's done/fail/always methods, it's imperative that you use the chain's bind() method below for your callbacks!**
 ```JS
-chain.push(myDfd.done(chain.bind(myFunction, this)));
+chain.push(myDfd.done(chain.bind(myCallback, this)));
 ```
 
 ### add(deferred1, ..., deferredn) ###
@@ -27,16 +28,36 @@ This is useful when you have a group of deferreds that are independent of each o
 
 **For the deferred's done/fail/always methods, it's imperative that you use the chain's bind() method below for your callbacks!**
 
-### bind(func, context, [arg1, ..., argn]) ###
-Required method for adding callbacks to the deferreds passed to push/add. Even if you have nothing to bind to, you must use this method to add callbacks.
-
 ### pushIgnoreFail(deferred1, ..., deferredn) ###
 Same as `push()` except that any failures will be ignored and the chain will continue processing upcoming levels.
 
 ### addIgnoreFail(deferred1, ..., deferredn) ###
 Same as `add()` except that any failures will be ignored and the chain will continue processing upcoming levels.
 
-## Prototype methods to add callbacks to the chain ##
+
+## Methods to send to deferreds ##
+
+### bind(func, context, [arg1, ..., argn]) ###
+Required method for adding callbacks to the deferreds passed to push/add. Even if you have nothing to bind to, you must use this method to add callbacks.
+
+### storeArgs([arg1, ..., argn]) ###
+If you want to store the resulting arguments on the chain for later use by `applyArgs` then send this function to a deferred's done.
+
+`storeArgs` does **NOT** support currying (use `after` instead), so `dfd.done(chain.storeArgs(1))` will ONLY store `1` regardless of what is resolved.
+
+*Keep in mind that if you're using `pushIgnoreFail` args will not be stored on fail unless you do something like `fail(chain.storeArgs(null))`.*
+```JS
+chain.push(myDfd.done(chain.storeArgs));
+chain.after(chain.storeArgs("finished myDfd"));
+chain.push(mySecondDfd.done(chain.applyArgs(myCallback, this));
+//{myCallback} will get args from myDfd, then "finished myDfd", then args from mySecondDfd
+```
+
+### applyArgs(func, context, [arg1, ..., argn]) ###
+Applies arguments stored using `storeArgs` to func. Can be used instead of `bind`.
+
+
+## Methods to add callbacks to the chain ##
 
 ### after(func, [currentLevel = false]) ###
 Adds a function to the next (default) or current level. Useful at the end of all your deferreds for knowing when everything completed.
@@ -50,6 +71,7 @@ Func is called whenever ANY of the non-ignored deferreds on ANY level fail. Usef
 ### fork() ###
 Returns a NEW chain that's dependent on the current level of this chain but will then run independently of this chain.
 You can bring the 2 back together using push/add later if you choose.
+
 
 --------------------------
 

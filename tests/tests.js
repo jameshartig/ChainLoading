@@ -30,6 +30,22 @@ exports.singleDoneBind = function(test) {
     test.done();
 };
 
+exports.singleDoneBindContext = function(test) {
+    var chain = new ChainLoading(),
+        count = 0,
+        context = this;
+
+    chain.done(chain.bind(function() {
+        count++;
+        test.ok(true);
+        test.equal(context, this);
+    }, this));
+
+    test.equal(count, 1);
+    test.done();
+};
+
+
 exports.singleDoneBindWithCurry = function(test) {
     var chain = new ChainLoading();
 
@@ -585,4 +601,84 @@ exports.forkMe = function(test) {
     d1.resolve();
     test.equal(order, 4);
     test.done();
+};
+
+exports.storeApplyArgs = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.applyArgs(function(one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.done();
+    })));
+
+    d2.resolve(2);
+    d1.resolve(1);
+};
+
+exports.storeApplyArgsFail = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.pushIgnoreFail(d1.fail(chain.storeArgs(1)));
+    chain.push(d2.done(chain.applyArgs(function(one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.done();
+    })));
+
+    d2.resolve(2);
+    d1.reject();
+};
+
+exports.storeApplyArgsCurryDone = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred();
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.done(chain.storeArgs(2));
+    chain.done(chain.applyArgs(function(one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.done();
+    }));
+
+    d1.resolve(1);
+};
+
+exports.storeApplyArgsStupidDone = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred();
+
+    chain.push(d1.done(chain.storeArgs(1)));
+    chain.done(chain.applyArgs(function(one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.done();
+    }));
+
+    d1.resolve(2);
+};
+
+exports.storeApplyArgsCurryTwoDfds = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.storeArgs));
+
+    chain.done(chain.applyArgs(function(one, two, three) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.done();
+    }, null, 3));
+
+    d2.resolve(2);
+    d1.resolve(1);
 };
