@@ -9,7 +9,7 @@ If a deferred is rejected, none of the callbacks in levels after it in the chain
 
 --------------------------
 
-## _.chainLoading() ##
+## new ChainLoading() ##
 Returns a new chainLoading object.
 
 ## Methods to add new deferreds to the chain ##
