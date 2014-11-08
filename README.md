@@ -44,9 +44,10 @@ Func is called whenever previous "levels" failed. Useful at the end of all your 
 If you're coming from 0.2.x release then you'll notice a few things changed:
 - Usage of chain.bind is now deprecated
 - `fail` will only be called when previous "levels" failed instead of every fail callback always being called.
-- 
 
 ## Advanced usage ##
+
+Todo: Add docs about all funcs above support deferred1...deferredn
 
 ### storeArgs([arg1, ..., argn]) ###
 If you want to store the resulting arguments on the chain for later use by `applyArgs` then send this function to a deferred's done.
