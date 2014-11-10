@@ -237,8 +237,8 @@
                     });
                     onComplete('rejected', resp);
                 };
-                if (obj.d.catch !== undefined) {
-                    obj.d.catch(onFail);
+                if (obj.d['catch'] !== undefined) {
+                    obj.d['catch'](onFail);
                 } else {
                     obj.d.fail(onFail);
                 }
@@ -317,7 +317,7 @@
         } //else its already resolved
         return this;
     };
-    GroupedDfdPromise.prototype.catch = GroupedDfdPromise.prototype.fail;
+    GroupedDfdPromise.prototype['catch'] = GroupedDfdPromise.prototype.fail;
     GroupedDfdPromise.prototype.always = function() {
         var args = slice.call(arguments);
         return this.fail.apply(this, args).done.apply(this, args);
@@ -423,7 +423,7 @@
             return this;
         };
 
-        this.fail = this.catch = function(func) {
+        this.fail = this['catch'] = function(func) {
             if (currentLevel === undefined) {
                 //global blah
                 globalFailCallbacks.push(func);
