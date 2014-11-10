@@ -95,3 +95,7 @@ free to use this on your last deferred.
 ### fork() ###
 Returns a NEW chain that's dependent on the current level of this chain but will then run independently of this chain.
 You can bring the 2 back together using push/add later if you choose.
+
+## Caveats ##
+
+* Does not emit `progress` events for deferreds that utilize `notify`.

@@ -193,12 +193,13 @@
                 this.promise.done(allDfds[i].d);
                 continue;
             }
-            if (typeof allDfds[i].d.done !== 'function') {
+            if (typeof allDfds[i].d.then !== 'function') {
                 throw Error('Invalid deferred sent to chain');
             }
 
             (function(obj) {
-                obj.d.done(function() {
+                var onFail;
+                obj.d.then(function() {
                     obj.args = slice.call(arguments);
                     obj.s = 1;
 
@@ -217,7 +218,8 @@
 
                     onResolve();
                 });
-                obj.d.fail(function() {
+
+                onFail = function() {
                     //overwrite the args on the response since we failed, we want the failed stuff to get called with the failed args
                     resp.args = slice.call(arguments);
 
@@ -234,7 +236,12 @@
                         }
                     });
                     onComplete('rejected', resp);
-                });
+                };
+                if (obj.d.catch !== undefined) {
+                    obj.d.catch(onFail);
+                } else {
+                    obj.d.fail(onFail);
+                }
             }(allDfds[i]));
         }
 
@@ -281,6 +288,19 @@
         } //else its already rejected
         return this;
     };
+    GroupedDfdPromise.prototype.then = function(doneCallbacks, failCallbacks) {
+        if (typeof doneCallbacks === 'function') {
+            this.done(doneCallbacks);
+        } else if (doneCallbacks != null) {
+            this.done.apply(this, doneCallbacks);
+        }
+        if (typeof failCallbacks === 'function') {
+            this.fail(failCallbacks);
+        } else if (failCallbacks != null) {
+            this.fail.apply(this, failCallbacks);
+        }
+        return this;
+    };
     GroupedDfdPromise.prototype.fail = function() {
         var i, l;
         if (this.s === 'rejected') {
@@ -296,6 +316,11 @@
             }
         } //else its already resolved
         return this;
+    };
+    GroupedDfdPromise.prototype.catch = GroupedDfdPromise.prototype.fail;
+    GroupedDfdPromise.prototype.always = function() {
+        var args = slice.call(arguments);
+        return this.fail.apply(this, args).done.apply(this, args);
     };
     //todo: implement other dfd methods
     GroupedDfdPromise.prototype.state = function() {
@@ -370,7 +395,7 @@
             return add('optionalDeferreds', slice.call(arguments));
         };
 
-        this.done = this.after = function(func, runAtCurrent) {
+        this.done = this.after = this.then = function(func, runAtCurrent) {
             if (runAtCurrent) {
                 this.add(func);
             } else {
@@ -379,7 +404,26 @@
             return this;
         };
 
-        this.fail = function(func) {
+        this.then = function(doneCallbacks, failCallbacks) {
+            var i, l;
+            if (typeof doneCallbacks === 'function') {
+                this.done(doneCallbacks);
+            } else if (doneCallbacks != null) {
+                for (i = 0, l = doneCallbacks.length; i < l; i++) {
+                    this.done(doneCallbacks[i]);
+                }
+            }
+            if (typeof failCallbacks === 'function') {
+                this.fail(failCallbacks);
+            } else if (failCallbacks != null) {
+                for (i = 0, l = failCallbacks.length; i < l; i++) {
+                    this.fail(failCallbacks[i]);
+                }
+            }
+            return this;
+        };
+
+        this.fail = this.catch = function(func) {
             if (currentLevel === undefined) {
                 //global blah
                 globalFailCallbacks.push(func);

@@ -31,6 +31,84 @@ exports.singleDeferredDone = function (test) {
     test.done();
 };
 
+exports.singleDeferredAlways = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1).always(function (one) {
+        test.equal(one, 1);
+        count++;
+    });
+
+    d1.resolve(1);
+    test.equal(count, 1);
+    test.done();
+};
+
+exports.singleDeferredAlwaysFail = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1).always(function (one) {
+        test.equal(one, 1);
+        count++;
+    });
+
+    d1.reject(1);
+    test.equal(count, 1);
+    test.done();
+};
+
+exports.singleDeferredThen = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1).then(function() {
+        test.fail();
+    },
+    function (one) {
+        test.equal(one, 1);
+        count++;
+    });
+
+    chain.then(function() {
+        test.fail();
+    },
+    function (undef) {
+        test.equal(undef, undefined);
+        count++;
+    });
+
+    d1.reject(1);
+    test.equal(count, 2);
+    test.done();
+};
+
+exports.singleDeferredThens = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0,
+        f1, f2;
+
+    f1 = function(one) {
+        test.equal(one, 1);
+        count++;
+    };
+    f2 = function(one) {
+        test.equal(one, 1);
+        count++;
+    };
+
+    chain.push(d1).then([f1, f2]);
+
+    d1.resolve(1);
+    test.equal(count, 2);
+    test.done();
+};
+
 exports.singleDeferredDoneArgs = function (test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred();
