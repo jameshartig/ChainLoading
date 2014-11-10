@@ -157,7 +157,7 @@
     //todo: remove globalCallbacks and completedDeferreds
     function GroupedDfd(chain, deferreds, onComplete, globalCallbacks, completedDeferreds) {
         this.args = [];
-        this.promise = new GroupedDfdPromise(chain);
+        this.promise = new GroupedDfdPromise();
         var resp = this,
             promise = this.promise,
             allDfds = [];
@@ -260,7 +260,7 @@
     };
 
     function GroupedDfdPromise(context) {
-        this.ctx = context;
+        this.ctx = context || this;
         this.s = null;
         this.args = null;
         this.callbacks = [];
@@ -406,8 +406,8 @@
                     };
                 }
                 //this is the actual deferred unless someone did chain.done(chain.bind(...))
-                if (this === self || completedDeferreds.has(this)) {
-                    f();
+                if (this === self || (this instanceof GroupedDfdPromise) || completedDeferreds.has(this)) {
+                    f.apply(this, slice.call(arguments));
                 } else {
                     deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
@@ -447,9 +447,10 @@
                     storedArgs.push.apply(storedArgs, args);
                 };
             if (this === self) {
-                //if someone did chain.done(chain.storeArgs()), then we want to apply those WHEN the chain gets to our level not immediately (now)
+                //if they did chain.push(chain.storeArgs(stuff)) we want to just put that into the chain and it call it when ready
                 return storeArgs;
-            } else if (completedDeferreds.has(this)) {
+            } else if ((this instanceof GroupedDfdPromise) || completedDeferreds.has(this)) {
+                //if a grouped promise was completed or if the deferred was already completed
                 storeArgs();
             } else {
                 deferredCallbacks.push({d: this, func: storeArgs, s: this.state()});

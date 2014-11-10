@@ -84,8 +84,3 @@ chain.push(loadUserMusic());
 //render the template once we know we have the profile and music
 chain.push(loadTemplate().done(chain.bind(renderTemplate, this)));
 ```
---------------------------
-
-## Caveats ##
-
-* If you add the same deferred object to the chain multiple times the done/fail callbacks will be called when the FIRST occurence of the deferred resolves/rejects in the chain. See the tests.js file for an example.

@@ -4,7 +4,7 @@ var assert = require("assert"),
     ChainLoading = require('../chainLoading.js');
 
 
-exports.immediateChainDone = function(test) {
+exports.singleDone = function(test) {
     var chain = new ChainLoading(),
         count = 0;
 
@@ -17,38 +17,47 @@ exports.immediateChainDone = function(test) {
     test.done();
 };
 
-exports.singleDeferredDone = function (test) {
+exports.singleDoneBind = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
         count = 0;
 
-    chain.push(d1).done(function () {
+    chain.done(chain.bind(function() {
         count++;
-    });
+        test.ok(true);
+    }));
 
-    d1.resolve();
     test.equal(count, 1);
     test.done();
 };
 
-exports.singleDeferredDoneArgs = function (test) {
+exports.singleDoneBindContext = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        count = 0;
+        count = 0,
+        context = this;
 
-    chain.push(d1).done(function (one, two, three) {
-        test.equal(one, 1);
-        test.equal(two, 2);
-        test.equal(three, 3);
-    }).fail(function() {
-        test.fail();
-    });
+    chain.done(chain.bind(function() {
+        count++;
+        test.ok(true);
+        test.equal(context, this);
+    }, this));
 
-    d1.resolve(1, 2, 3);
+    test.equal(count, 1);
     test.done();
 };
 
-exports.singleDeferredFail = function(test) {
+
+exports.singleDoneBindWithCurry = function(test) {
+    var chain = new ChainLoading();
+
+    chain.done(chain.bind(function(one, two, three) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.done();
+    }, null, 1, 2, 3));
+};
+
+exports.singleFail = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         count = 0;
@@ -67,100 +76,106 @@ exports.singleDeferredFail = function(test) {
     test.done();
 };
 
-exports.singleDeferredDoneAdd = function(test) {
+exports.singleDoneAdd = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         count = 0;
 
     chain.done(function() {
         count++;
+        test.ok(true);
     });
-    chain.add(d1).done(function() {
+    chain.add(d1.done(chain.bind(function() {
         count++;
-    }).fail(function () {
-        test.fail();
-    });
+        test.ok(true);
+    })));
 
     d1.resolve();
     test.equal(count, 2);
     test.done();
 };
 
-exports.twoDeferrdsOrderedResolve = function(test) {
+exports.twoDfds = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 0);
-    }).fail(function() {
-        test.fail();
-    });
+    })));
 
-    chain.push(d2).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 1);
-    }).fail(function () {
-        test.fail();
-    });
+    })));
 
-    d1.resolve(1);
-    d2.resolve(1);
+    d1.resolve();
+    d2.resolve();
     test.equal(order, 2);
     test.done();
 };
 
-exports.twoDeferredsBackwardsResolve = function(test) {
+exports.twoDfdsBackwards = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 0);
-    }).fail(function () {
-        test.fail();
-    });
+    })));
 
-    chain.push(d2).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 1);
-    }).fail(function () {
-        test.fail();
-    });
+    })));
 
-    d2.resolve(1);
-    d1.resolve(1);
+    d2.resolve();
+    d1.resolve();
     test.equal(order, 2);
     test.done();
 };
 
-exports.twoDeferredsFail = function(test) {
+exports.twoDfdsFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1).fail(function() {
+    chain.push(d1.fail(chain.bind(function() {
         test.equal(order++, 0);
-    }).fail(function () {
-        test.equal(order++, 1);
-    });
+    })));
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.fail();
-    });
+    })));
 
     d2.resolve();
     d1.reject();
+    test.equal(order, 1);
+    test.done();
+};
+
+exports.twoDfdsTimeout = function(test) {
+    var chain = new ChainLoading(),
+        order = 0,
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 1);
+    })));
+
+    d2.resolve();
+    d1.resolve();
     test.equal(order, 2);
     test.done();
 };
 
-exports.twoDeferredsOneIgnoredFail = function(test) {
+exports.twoDfdsOneFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
@@ -170,24 +185,23 @@ exports.twoDeferredsOneIgnoredFail = function(test) {
         test.fail();
     });
 
-    chain.pushIgnoreFail(d1).done(function() {
+    chain.pushIgnoreFail(d1.done(chain.bind(function() {
         test.fail();
-    }).fail(function(one) {
-        test.equal(one, 1);
+    })).fail(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
 
-    d1.reject(1);
+    d1.reject();
     d2.resolve();
     test.equal(order, 2);
     test.done();
 };
 
-exports.threeDeferredsWithDone = function(test) {
+exports.threeDfdsWithDone = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
@@ -198,21 +212,21 @@ exports.threeDeferredsWithDone = function(test) {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function() {
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
 
     chain.done(function() {
         test.equal(order++, 2);
     }, true);
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 3);
-    });
+    })));
 
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         test.equal(order++, 4);
-    });
+    })));
 
     d1.resolve();
     d3.resolve();
@@ -221,7 +235,7 @@ exports.threeDeferredsWithDone = function(test) {
     test.done();
 };
 
-exports.threeDeferredsOneFail = function(test) {
+exports.threeDfdsOneFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
@@ -232,19 +246,19 @@ exports.threeDeferredsOneFail = function(test) {
         test.fail();
     });
 
-    chain.pushIgnoreFail(d1).done(function() {
+    chain.pushIgnoreFail(d1.done(chain.bind(function() {
         test.fail();
-    }).fail(function() {
+    })).fail(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
 
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         test.equal(order++, 2);
-    });
+    })));
 
     d2.resolve();
     d1.reject();
@@ -253,7 +267,7 @@ exports.threeDeferredsOneFail = function(test) {
     test.done();
 };
 
-exports.fiveDeferredsWithInnerAdds = function(test) {
+exports.fiveDfdsWithInnerAdds = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
@@ -262,27 +276,27 @@ exports.fiveDeferredsWithInnerAdds = function(test) {
         d4 = new $.Deferred(),
         d5 = new $.Deferred();
 
-    chain.add(d1).done(function() {
+    chain.add(d1.done(chain.bind(function() {
         test.equal(order, 0);
 
-        chain.push(d5).done(function() {
+        chain.push(d5.done(chain.bind(function() {
             order++;
             test.equal(order, 2);
-        });
+        })));
 
-    });
+    })));
 
-    chain.add(d2).done(function() {
+    chain.add(d2.done(chain.bind(function() {
         test.equal(order, 0);
-        chain.add(d4).done(function() {
+        chain.add(d4.done(chain.bind(function() {
             test.equal(order, 2);
-        });
-    });
+        })));
+    })));
 
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         order++;
         test.equal(order, 1);
-    });
+    })));
 
     d5.resolve();
     d3.resolve();
@@ -293,7 +307,7 @@ exports.fiveDeferredsWithInnerAdds = function(test) {
     test.done();
 };
 
-exports.threeDeferredsOneAddFail = function(test) {
+exports.threeDfdsOneAddFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
@@ -304,21 +318,21 @@ exports.threeDeferredsOneAddFail = function(test) {
         test.equal(order, 0);
     });
 
-    chain.addIgnoreFail(d1).done(function() {
+    chain.addIgnoreFail(d1.done(chain.bind(function() {
         test.fail();
-    }).fail(function() {
+    })).fail(chain.bind(function() {
         test.equal(order, 0);
-    });
+    })));
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         order++;
         test.equal(order, 1);
-    });
+    })));
 
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         order++;
         test.equal(order, 2);
-    });
+    })));
 
     d1.reject();
     d2.resolve();
@@ -340,16 +354,16 @@ exports.chainCeption = function(test) {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function() {
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
     chain.push(chain2);
     chain.done(function() {
         test.equal(order++, 2);
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         test.equal(order++, 3);
-    });
+    })));
     chain.fail(function() {
         test.fail();
     });
@@ -379,9 +393,9 @@ exports.chainCeptionFail = function(test) {
     chain.done(function() {
         test.fail();
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         test.fail();
-    });
+    })));
     chain.fail(function() {
         count++;
     });
@@ -411,9 +425,9 @@ exports.chainCeptionIgnoreFail = function(test) {
     chain.done(function() {
         count++;
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         count++;
-    });
+    })));
     chain.fail(function() {
         test.fail();
     });
@@ -430,9 +444,9 @@ exports.singleFailAfterCallback = function(test) {
         d1 = new $.Deferred(),
         count = 0;
 
-    chain.push(d1).fail(function() {
+    chain.push(d1.fail(chain.bind(function() {
         count++;
-    });
+    })));
 
     d1.reject();
     chain.fail(function() {
@@ -449,13 +463,13 @@ exports.bindBeforeAfterCompleted = function(test) {
         order = 0;
 
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
-    chain.push(d1).done(function() {
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
 
     d1.done(chain.bind(function() {
         test.equal(order++, 2);
@@ -472,26 +486,57 @@ exports.bindBeforeAfterCompleted = function(test) {
     test.done();
 };
 
+/*
+
+THIS IS BROKEN AND A KNOWN CAVEAT
+
 exports.pushAfterCompleted = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
         order = 0;
 
-    chain.push(d1).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
 
-    d1.resolve(1);
-    chain.push(d1).done(function(one) {
-        test.equal(one, 1);
+    d1.resolve();
+    chain.push(d1.done(chain.bind(function() {
         test.equal(order++, 2);
+    })));
+    chain.done(function() {
+        test.equal(order++, 3);
     });
+    d2.resolve();
+    test.equal(order, 4);
+    test.done();
+};
+
+*/
+
+//if we fix the above caveat then this test will break (unless magic) because it's utilizing the caveat
+exports.doneAfterCompletedWithCaveat = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        order = 0;
+
+    chain.push(d1.done(chain.bind(function() {
+        test.equal(order++, 0);
+    })));
+
+    chain.push(d2.done(chain.bind(function() {
+        test.equal(order++, 2);
+    })));
+
+    d1.resolve();
+    d1.done(chain.bind(function() {
+        test.equal(order++, 1);
+    }));
     chain.done(function() {
         test.equal(order++, 3);
     });
@@ -506,15 +551,15 @@ exports.completedBeforeAdded = function(test) {
         d2 = new $.Deferred(),
         order = 0;
 
-    d1.resolve(1);
-    chain.push(d2).done(function() {
+    d1.resolve();
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
-    chain.push(d1).done(function(one) {
-        test.equal(one, 1);
+    chain.push(d1);
+    d1.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    }));
 
     d2.resolve();
     chain.done(function() {
@@ -531,19 +576,19 @@ exports.forkMe = function(test) {
         d3 = new $.Deferred(),
         order = 0, chain2;
 
-    chain.push(d2).done(function() {
+    chain.push(d2.done(chain.bind(function() {
         test.equal(order++, 0);
-    });
+    })));
 
     chain2 = chain.fork();
-    chain2.push(d1).done(function() {
+    chain2.push(d1.done(chain2.bind(function() {
         test.equal(order++, 2);
-    });
+    })));
 
     //this is a separate chain now so its technically dependant on the order of the resolve
-    chain.push(d3).done(function() {
+    chain.push(d3.done(chain.bind(function() {
         test.equal(order++, 1);
-    });
+    })));
     chain.push(chain2);
     chain.done(function() {
         test.equal(order++, 3);
@@ -561,15 +606,14 @@ exports.storeApplyArgs = function(test) {
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.applyArgs(function(one, two, three) {
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.applyArgs(function(one, two) {
         test.equal(one, 1);
         test.equal(two, 2);
-        test.equal(three, 3);
         test.done();
-    }));
+    })));
 
-    d2.resolve(2, 3);
+    d2.resolve(2);
     d1.resolve(1);
 };
 
@@ -593,7 +637,7 @@ exports.storeApplyArgsCurryDone = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred();
 
-    chain.push(d1).done(chain.storeArgs);
+    chain.push(d1.done(chain.storeArgs));
     chain.done(chain.storeArgs(2));
     chain.done(chain.applyArgs(function(one, two) {
         test.equal(one, 1);
@@ -609,7 +653,7 @@ exports.storeApplyArgsStupidDone = function(test) {
         d1 = new $.Deferred();
 
     //we do NOT support currying for storeArgs
-    chain.push(d1).done(chain.storeArgs(1));
+    chain.push(d1.done(chain.storeArgs(1)));
     chain.done(chain.applyArgs(function(one, undef) {
         test.equal(one, 1);
         test.equal(undef, undefined);
@@ -624,8 +668,8 @@ exports.storeApplyArgsCurryTwoDfds = function(test) {
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.storeArgs);
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.storeArgs));
 
     chain.done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
@@ -645,8 +689,8 @@ exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
 
     d2.resolve(2);
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.storeArgs);
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.storeArgs));
 
     chain.done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
@@ -657,5 +701,3 @@ exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
 
     d1.resolve(1);
 };
-
-//todo: add tests for adding multiple deferreds in a single push

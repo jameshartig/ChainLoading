@@ -1,8 +1,7 @@
 var $ = require('jquery-deferred'),
     ChainLoading = require("./ChainLoading.js");
 
-var chain = new ChainLoading(),
-    d1 = new $.Deferred(),
+var d1 = new $.Deferred(),
     d2 = new $.Deferred(),
     d3 = new $.Deferred();
 //level 1
