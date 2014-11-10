@@ -33,8 +33,7 @@ exports.singleDeferredDone = function (test) {
 
 exports.singleDeferredDoneArgs = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        count = 0;
+        d1 = new $.Deferred();
 
     chain.push(d1).done(function (one, two, three) {
         test.equal(one, 1);
@@ -658,4 +657,61 @@ exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
     d1.resolve(1);
 };
 
-//todo: add tests for adding multiple deferreds in a single push
+exports.threeDeferredsOnePush = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        d3 = new $.Deferred();
+
+    chain.push(d1, d2, d3).done(function (one, two, three, four, five) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.equal(four, 4);
+        test.equal(five, 5);
+        test.done();
+    });
+
+    d1.resolve(1);
+    d3.resolve(5);
+    d2.resolve(2, 3, 4);
+};
+
+exports.threeDeferredsOneFailed = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        d3 = new $.Deferred();
+
+    chain.push(d1, d2, d3).done(function () {
+        test.fail();
+    }).fail(function() {
+        test.done();
+    });
+
+    d3.resolve();
+    d1.resolve();
+    d2.reject();
+};
+
+exports.deferredsOneFailedChainFail = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1, d2).done(function () {
+        test.fail();
+    }).fail(function () {
+        count++;
+    });
+
+    chain.fail(function() {
+        count++;
+    });
+
+    d1.resolve();
+    d2.reject();
+    test.equal(count, 2);
+    test.done();
+};
