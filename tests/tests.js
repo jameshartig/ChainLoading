@@ -592,9 +592,10 @@ exports.storeApplyArgsCurryDone = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred();
 
-    chain.push(d1).done(chain.storeArgs);
+    chain.push(d1).done(chain.storeArgs(0)).done(chain.storeArgs);
     chain.done(chain.storeArgs(2));
-    chain.done(chain.applyArgs(function(one, two) {
+    chain.done(chain.applyArgs(function(zero, one, two) {
+        test.equal(zero, 0);
         test.equal(one, 1);
         test.equal(two, 2);
         test.done();
