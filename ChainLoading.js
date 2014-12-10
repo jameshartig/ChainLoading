@@ -258,7 +258,7 @@
     GroupedDfd.prototype.complete = function(s) {
         var callbacks = this.promise.callbacks,
             i;
-        if (this.promise.s === null) {
+        if (this.promise.s === 'pending') {
             this.promise.s = s === 'ignored' ? 'rejected' : s;
             this.promise.args = this.args;
         }
@@ -273,7 +273,7 @@
 
     function GroupedDfdPromise(context) {
         this.ctx = context || this;
-        this.s = null;
+        this.s = 'pending';
         this.args = null;
         this.callbacks = [];
     }
@@ -283,7 +283,7 @@
             for (i = 0, l = arguments.length; i < l; i++) {
                 arguments[i].apply(this.ctx, this.args);
             }
-        } else if (this.s === null) {
+        } else if (this.s === 'pending') {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
                     throw new Error('Invalid function sent to done ' + (typeof arguments[i]));
@@ -312,7 +312,7 @@
             for (i = 0, l = arguments.length; i < l; i++) {
                 arguments[i].apply(this.ctx, this.args);
             }
-        } else if (this.s === null) {
+        } else if (this.s === 'pending') {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
                     throw new Error('Invalid function sent to fail ' + (typeof arguments[i]));
