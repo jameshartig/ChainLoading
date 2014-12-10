@@ -164,6 +164,7 @@
             allDfds = [];
 
         function onResolve() {
+            //loop through the deferreds and build the response args array in order
             for (var i = 0; i < allDfds.length; i++) {
                 //once we hit one that isn't resolved then break
                 if (allDfds[i].s === 0) {
@@ -180,11 +181,13 @@
             }
         }
 
+        //create the objects that hold each deferred, its state and the args it returned
         var i, l;
         for (i = 0, l = deferreds.length; i < l; i++) {
             if (deferreds[i] === undefined) {
-                throw Error('Undefined sent to sent. Did you mean to return deferred?');
+                throw new Error('Undefined sent to sent. Did you forget to return deferred?');
             }
+            //s of 0 means not done and s of 1 means done
             allDfds.push({d: deferreds[i], s: 0, args: null});
         }
         //we need to loop a second time since a deferred could IMMEDATELY resolve
@@ -195,9 +198,10 @@
                 continue;
             }
             if (typeof allDfds[i].d.then !== 'function') {
-                throw Error('Invalid deferred sent to chain');
+                throw new Error('Invalid deferred sent to chain');
             }
 
+            //add handlers to the deferred so we can store the state it resolved as and the args it returned
             (function(obj) {
                 var onFail;
                 obj.d.then(function() {
@@ -282,7 +286,7 @@
         } else if (this.s === null) {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
-                    throw Error('Invalid function sent to done ' + (typeof arguments[i]));
+                    throw new Error('Invalid function sent to done ' + (typeof arguments[i]));
                 }
                 this.callbacks.push({s: 'resolved', f: arguments[i]});
             }
@@ -311,7 +315,7 @@
         } else if (this.s === null) {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
-                    throw Error('Invalid function sent to fail ' + (typeof arguments[i]));
+                    throw new Error('Invalid function sent to fail ' + (typeof arguments[i]));
                 }
                 this.callbacks.push({s: 'rejected', f: arguments[i]});
             }
