@@ -229,10 +229,41 @@ exports.twoDeferredsFail = function(test) {
 
     chain.push(d2).done(function() {
         test.fail();
+    }).fail(function() {
+        test.fail();
     });
 
     d2.resolve();
     d1.reject();
+    test.equal(order, 2);
+    test.done();
+};
+
+exports.twoDeferredsPreFail = function(test) {
+    var chain = new ChainLoading(),
+        order = 0,
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        c;
+    d1.reject();
+
+    chain.push(d1).fail(function() {
+        test.equal(order++, 0);
+    }).fail(function () {
+        test.equal(order++, 1);
+    });
+
+    c = chain.push(d2).done(function() {
+        test.fail();
+    }).fail(function() {
+        test.fail();
+    });
+    //make sure we aren't leaking memory
+    if (c.callbacks != null && c.callbacks.length > 0) {
+        test.fail();
+    }
+
+    d2.resolve();
     test.equal(order, 2);
     test.done();
 };

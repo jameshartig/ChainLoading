@@ -1,6 +1,7 @@
 (function(window) {
     var CompletedMap = window.WeakMap,
         slice = [].slice, //from: http://stackoverflow.com/questions/120804/difference-between-array-slice-and-array-slice/121302#121302
+        noopThis = function() { return this; },
         undefined;
 
     //polyfill for WeakMap (we only need set/get)
@@ -327,6 +328,18 @@
         return this.s;
     };
 
+    //an empty promise will never be resolved
+    function EmptyPromise() {}
+    for (var m in GroupedDfdPromise.prototype) {
+        if (GroupedDfdPromise.prototype.hasOwnProperty(m) && typeof GroupedDfdPromise.prototype[m] === 'function') {
+            EmptyPromise.prototype[m] = noopThis;
+        }
+    }
+    //state is a special case
+    EmptyPromise.prototype.state = function() {
+        return 'pending';
+    };
+
     function ChainLoading() {
         var self = this,
             deferredCallbacks = [],
@@ -352,7 +365,7 @@
                 newLevel;
             //if we've already failed then just short-circuit
             if (hasCurrentLevel && currentLevel.state === 'rejected') {
-                return;
+                return new EmptyPromise();
             }
             newLevel = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
             newLevel.addFailCallback(levelFailed); //todo: somehow only add this to the LAST container so it doesn't get called on every level
