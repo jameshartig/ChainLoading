@@ -109,6 +109,21 @@ exports.singleDeferredThens = function (test) {
     test.done();
 };
 
+exports.twoDeferredsOnePushAlreadyDone = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    d1.resolve();
+    d2.resolve();
+
+    chain.push(d1, d2).done(function () {
+        test.done();
+    }).fail(function() {
+        test.fail();
+    });
+};
+
 exports.singleDeferredDoneArgs = function (test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred();

@@ -161,11 +161,13 @@
         this.promise = new GroupedDfdPromise();
         var resp = this,
             promise = this.promise,
-            allDfds = [];
+            allDfds = [],
+            complete = false,
+            canResolve = false;
 
         function onResolve() {
             //loop through the deferreds and build the response args array in order
-            for (var i = 0; i < allDfds.length; i++) {
+            for (var i = 0; i < allDfds.length && canResolve && !complete; i++) {
                 //once we hit one that isn't resolved then break
                 if (allDfds[i].s === 0) {
                     break;
@@ -176,7 +178,8 @@
                 allDfds.splice(i, 1);
                 i--;
             }
-            if (allDfds.length === 0) {
+            if (allDfds.length === 0 && !complete) {
+                complete = true;
                 onComplete('resolved', resp);
             }
         }
@@ -191,7 +194,7 @@
             allDfds.push({d: deferreds[i], s: 0, args: null});
         }
         //we need to loop a second time since a deferred could IMMEDATELY resolve
-        for (i = 0, l = allDfds.length; i < l; i++) {
+        for (i = 0, l = allDfds.length; i < l && !complete; i++) {
             if (typeof allDfds[i].d === 'function') {
                 allDfds[i].s = 1;
                 this.promise.done(allDfds[i].d);
@@ -240,7 +243,10 @@
                             }
                         }
                     });
-                    onComplete('rejected', resp);
+                    if (!complete) {
+                        complete = true;
+                        onComplete('rejected', resp);
+                    }
                 };
                 if (obj.d['catch'] !== undefined) {
                     obj.d['catch'](onFail);
@@ -249,11 +255,12 @@
                 }
             }(allDfds[i]));
         }
+        //start allowing resolving now
+        canResolve = true;
 
         //if there was only functions or deferreds already resolved, immediately resolve (only if we didn't already resolve)
-        if (allDfds.length > 0) {
-            onResolve();
-        }
+        //a resolve might've be called but we had to postpone till we were done looping
+        onResolve();
     }
     GroupedDfd.prototype.complete = function(s) {
         var callbacks = this.promise.callbacks,
