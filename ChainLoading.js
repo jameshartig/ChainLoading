@@ -188,7 +188,7 @@
         var i, l;
         for (i = 0, l = deferreds.length; i < l; i++) {
             if (deferreds[i] === undefined) {
-                throw new Error('Undefined sent to sent. Did you forget to return deferred?');
+                throw new Error('Undefined sent to push/add. Did you forget to return a deferred?');
             }
             //s of 0 means not done and s of 1 means done
             allDfds.push({d: deferreds[i], s: 0, args: null});
