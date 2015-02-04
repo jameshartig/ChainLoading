@@ -604,17 +604,54 @@ exports.forkMe = function(test) {
 exports.storeApplyArgs = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d2 = new $.Deferred(),
+        _this = this;
 
     chain.push(d1.done(chain.storeArgs));
-    chain.push(d2.done(chain.applyArgs(function(one, two) {
+    chain.push(d2.done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
         test.equal(two, 2);
+        test.equal(three, 3);
+        test.equal(_this, this);
         test.done();
-    })));
+    }, this)));
 
-    d2.resolve(2);
+    d2.resolve(2, 3);
     d1.resolve(1);
+};
+
+exports.storeApplyArgsBackwards = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        _this = this;
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.applyArgs(function (one, two, three) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.equal(_this, this);
+        test.done();
+    }, this)));
+
+    d1.resolve(1);
+    d2.resolve(2, 3);
+};
+
+exports.onlyApplyArgs = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        _this = this;
+
+    chain.push(d1).done(chain.applyArgs(function (one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(_this, this);
+        test.done();
+    }, this));
+
+    d1.resolve(1, 2);
 };
 
 exports.storeApplyArgsFail = function(test) {

@@ -682,18 +682,54 @@ exports.forkMe = function(test) {
 exports.storeApplyArgs = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d2 = new $.Deferred(),
+        _this = this;
 
     chain.push(d1).done(chain.storeArgs);
     chain.push(d2).done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
         test.equal(two, 2);
         test.equal(three, 3);
+        test.equal(_this, this);
         test.done();
-    }));
+    }, this));
 
     d2.resolve(2, 3);
     d1.resolve(1);
+};
+
+exports.storeApplyArgsBackwards = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        _this = this;
+
+    chain.push(d1.done(chain.storeArgs));
+    chain.push(d2.done(chain.applyArgs(function (one, two, three) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.equal(_this, this);
+        test.done();
+    }, this)));
+
+    d1.resolve(1);
+    d2.resolve(2, 3);
+};
+
+exports.onlyApplyArgs = function (test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        _this = this;
+
+    chain.push(d1).done(chain.applyArgs(function (one, two) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(_this, this);
+        test.done();
+    }, this));
+
+    d1.resolve(1, 2);
 };
 
 exports.storeApplyArgsFail = function(test) {
@@ -782,13 +818,13 @@ exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
     d1.resolve(1);
 };
 
-exports.threeDeferredsOnePush = function (test) {
+exports.threeDeferredsOnePush = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
         d3 = new $.Deferred();
 
-    chain.push(d1, d2, d3).done(function (one, two, three, four, five) {
+    chain.push(d1, d2, d3).done(function(one, two, three, four, five) {
         test.equal(one, 1);
         test.equal(two, 2);
         test.equal(three, 3);
@@ -802,13 +838,13 @@ exports.threeDeferredsOnePush = function (test) {
     d2.resolve(2, 3, 4);
 };
 
-exports.threeDeferredsOneFailed = function (test) {
+exports.threeDeferredsOneFailed = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
         d3 = new $.Deferred();
 
-    chain.push(d1, d2, d3).done(function () {
+    chain.push(d1, d2, d3).done(function() {
         test.fail();
     }).fail(function() {
         test.done();
@@ -819,13 +855,13 @@ exports.threeDeferredsOneFailed = function (test) {
     d2.reject();
 };
 
-exports.deferredsOneFailedChainFail = function (test) {
+exports.deferredsOneFailedChainFail = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
         count = 0;
 
-    chain.push(d1, d2).done(function () {
+    chain.push(d1, d2).done(function() {
         test.fail();
     }).fail(function () {
         count++;
@@ -838,5 +874,122 @@ exports.deferredsOneFailedChainFail = function (test) {
     d1.resolve();
     d2.reject();
     test.equal(count, 2);
+    test.done();
+};
+
+exports.state = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        d3 = new $.Deferred();
+
+    test.equal(chain.state(), 'pending');
+
+    chain.push(d3);
+    d3.resolve();
+
+    test.equal(chain.state(), 'resolved');
+
+    chain.push(d1);
+
+    test.equal(chain.state(), 'pending');
+
+    chain.push(d2);
+    d2.reject();
+
+    test.equal(chain.state(), 'rejected');
+
+    d1.resolve();
+
+    test.equal(chain.state(), 'rejected');
+    test.done();
+};
+
+exports.singleDeferredPromiseDone = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        promise = chain.promise(),
+        count = 0;
+
+    chain.push(d1);
+    promise.done(function() {
+        count++;
+    });
+
+    d1.resolve();
+    test.equal(count, 1);
+    test.done();
+};
+
+exports.twoDeferredsPromiseDone = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        promise = chain.promise(),
+        count = 0;
+
+    chain.push(d1);
+    promise.done(function() {
+        test.equal(count, 0);
+        count++;
+    });
+
+    chain.push(d2);
+    promise.done(function() {
+        test.equal(count, 1);
+        count++;
+    });
+
+    d1.resolve();
+    test.equal(count, 1);
+
+    d2.resolve();
+    test.equal(count, 2);
+    test.done();
+};
+
+exports.singleDeferredPromiseAlways = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        promise = chain.promise(),
+        count = 0;
+
+    chain.push(d1);
+    promise.always(function() {
+        count++;
+    });
+
+    d1.resolve();
+    test.equal(count, 1);
+    test.done();
+};
+
+exports.singleDeferredPromiseThen = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        promise = chain.promise(),
+        count = 0;
+
+    chain.push(d1);
+    promise.then(function() {
+        test.fail();
+    }, function() {
+        count++;
+    });
+
+    d1.reject();
+    test.equal(count, 1);
+    test.done();
+};
+
+exports.singleDeferredPromiseState = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        promise = chain.promise();
+
+    chain.push(d1);
+
+    d1.resolve();
+    test.equal(promise.state(), 'resolved');
     test.done();
 };

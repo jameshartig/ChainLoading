@@ -105,7 +105,7 @@
             } else {
                 this.dfds[i].r = true; //ready
                 if (this.dfds[i].s === 0) { //not active yet so we can't continue
-                    break; //todo: if we don't want ot maintain order in a level then make this continue or something
+                    break; //todo: if we don't want to maintain order in a level then make this continue or something
                 }
                 this.dfds[i].g.complete(this.state);
             }
@@ -355,9 +355,9 @@
         var self = this,
             deferredCallbacks = [],
             completedDeferreds = new CompletedMap(), //deferreds that have completed, used for binds that happened after a push/add
-            storedArgs = [], //todo: it'd be cool to not make this always be an empty array and initialize it to something else
             globalFailCallbacks = [],
-            currentLevel;
+            storedArgs, currentLevel,
+            promise;
 
         function levelFailed() {
             for (var i = 0; i < globalFailCallbacks.length; i++) {
@@ -493,15 +493,15 @@
 
         //this is basically bind but will apply the storedArgs as if they were curried
         this.applyArgs = function(func, context) {
-            if (arguments.length < 3) {
-                //optimize for usual case
+            if (arguments.length < 3) { //optimize for usual case
+                //make sure stored args isn't null so we can pass a reference to internalBind
+                if (storedArgs === undefined) storedArgs = [];
                 return internalBind(func, context, storedArgs);
             } else {
                 var curried = slice.call(arguments, 2);
                 return function() {
-                    var args = storedArgs.concat(curried).concat(slice.call(arguments));
-                    //easy way of emptying array (from: http://stackoverflow.com/questions/1232040/how-to-empty-an-array-in-javascript/1234337#1234337)
-                    storedArgs.length = 0;
+                    //this is also clearing out storedArgs, unless its undefined which means that storeArgs was never called?
+                    var args = (storedArgs || []).splice(0, storedArgs.length).concat(curried).concat(slice.call(arguments));
                     internalBind(func, context, args).call(this);
                 };
             }
@@ -511,6 +511,8 @@
             //this is the actual deferred unless someone did chain.done(chain.storeArgs(...))
             var args = slice.call(arguments),
                 storeArgs = function() {
+                    //if storedArgs is null then they either haven't called applyArgs or they passed >3 arguments
+                    if (storedArgs === undefined) storedArgs = [];
                     //cannot use concat on storedArgs since we need ref to be the same for internalBind to work correctly
                     storedArgs.push.apply(storedArgs, args);
                 };
@@ -534,6 +536,34 @@
             var newChain = new ChainLoading();
             newChain.push(this);
             return newChain;
+        };
+
+        this.state = function() {
+            if (currentLevel === undefined) {
+                return 'pending';
+            }
+            //state defaults to '' so return 'pending'
+            //if the state is 'ignored' then it should actually be 'rejected'
+            return (currentLevel.state === 'ignored' ? 'rejected' : currentLevel.state) || 'pending';
+        };
+
+        this.promise = function() {
+            if (promise === undefined) {
+                var tinyBind = function(func, context) {
+                    //right now all the things we're binding below require less than 3 args
+                    return function(oneArg, twoArg, threeArg) {
+                        return func.call(context, oneArg, twoArg, threeArg);
+                    };
+                };
+                promise = {
+                    state: this.state, //no bind needed
+                    done: tinyBind(this.done, this),
+                    fail: tinyBind(this.fail, this),
+                    always: tinyBind(this.always, this),
+                    then: tinyBind(this.then, this)
+                };
+            }
+            return promise;
         };
     }
 

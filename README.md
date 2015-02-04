@@ -54,6 +54,10 @@ everything completed.
 
 ### fail(func) ###
 Func is called whenever previous "levels" failed. Useful at the end of all your deferreds for knowing if the chain failed.
+
+### promise() ###
+Returns a promise object with `done`, `fail`, `always`, `then` function that map to each of the chain's methods. Useful to
+return at the end of a function utilizing a chain so the caller can do `func().done(itsDone)` to know when the function is done.
  
 ## Upgrade notes ##
 
