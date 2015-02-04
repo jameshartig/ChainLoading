@@ -1,6 +1,4 @@
-var assert = require("assert"),
-    events = require('events'),
-    $ = require('jquery-deferred'),
+var $ = require('jquery-deferred'),
     ChainLoading = require('../chainLoading.js');
 
 

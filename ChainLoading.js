@@ -70,7 +70,6 @@
             }
         }, globalCallbacks, completedDeferreds).promise;
     };
-    //still required to finish but if they fail, nbd
     LevelContainer.prototype.optionalDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
         var level = this;
         return this.newGroup(dfds, function(s, ready) {
@@ -81,7 +80,7 @@
                     }
                     break;
                 case 'rejected':
-                    level.state = 'ignored';
+                    level.state = 'ignored'; //still required to finish but if they fail, nbd
                     break;
             }
             if (ready) { //make sure we've been given clearance to resolve this
@@ -148,7 +147,7 @@
         }
         //just empty the array
         for (i = 0, l = this.failCallbacks.length; i < l; i++) {
-            this.failCallbacks.shift()
+            this.failCallbacks.shift();
         }
         if (this.nextLevel !== null && skipNext !== true) {
             this.nextLevel.cleanup();
@@ -572,7 +571,7 @@
     } else {
         window.ChainLoading = ChainLoading;
 
-        if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
+        if (typeof define === 'function' && typeof define.amd === 'object' && define.amd) {
             define('ChainLoading', function() { return ChainLoading; });
         }
     }
