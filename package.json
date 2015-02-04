@@ -6,6 +6,10 @@
   "directories": {
     "test": "tests"
   },
+  "devDependencies": {
+    "nodeunit": "0.9.0",
+    "jquery-deferred": "0.3.0"
+  },
   "scripts": {
     "test": "nodeunit tests"
   },

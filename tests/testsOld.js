@@ -1,5 +1,5 @@
 var $ = require('jquery-deferred'),
-    ChainLoading = require('../chainLoading.js');
+    ChainLoading = require('../ChainLoading.js');
 
 
 exports.singleDone = function(test) {
