@@ -1,6 +1,5 @@
-var $ = require('jquery-deferred'),
+var Q = require('q'),
     ChainLoading = require('../ChainLoading.js');
-
 
 exports.immediateChainDone = function(test) {
     var chain = new ChainLoading(),
@@ -17,54 +16,60 @@ exports.immediateChainDone = function(test) {
 
 exports.singleDeferredDone = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).done(function () {
+    chain.push(d1.promise).done(function () {
         count++;
     });
 
     d1.resolve();
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.singleDeferredAlways = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).always(function (one) {
+    chain.push(d1.promise).always(function (one) {
         test.equal(one, 1);
         count++;
     });
 
     d1.resolve(1);
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.singleDeferredAlwaysFail = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).always(function (one) {
+    chain.push(d1.promise).always(function (one) {
         test.equal(one, 1);
         count++;
     });
 
     d1.reject(1);
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.singleDeferredThen = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).then(function() {
+    chain.push(d1.promise).then(function() {
         test.fail();
     },
     function (one) {
@@ -81,13 +86,15 @@ exports.singleDeferredThen = function (test) {
     });
 
     d1.reject(1);
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.singleDeferredThens = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0,
         f1, f2;
 
@@ -100,53 +107,36 @@ exports.singleDeferredThens = function (test) {
         count++;
     };
 
-    chain.push(d1).then([f1, f2]);
+    chain.push(d1.promise).then([f1, f2]);
 
     d1.resolve(1);
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.twoDeferredsOnePushAlreadyDone = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
     d1.resolve();
     d2.resolve();
 
-    chain.push(d1, d2).done(function () {
+    chain.push(d1.promise, d2.promise).done(function () {
         test.done();
     }).fail(function() {
         test.fail();
     });
 };
 
-exports.singleDeferredDoneArgs = function (test) {
-    var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        finished = false;
-
-    chain.push(d1).done(function (one, two, three) {
-        test.equal(one, 1);
-        test.equal(two, 2);
-        test.equal(three, 3);
-        finished = true;
-    }).fail(function() {
-        test.fail();
-    });
-
-    d1.resolve(1, 2, 3);
-    test.ok(finished);
-    test.done();
-};
-
 exports.singleDeferredFail = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).fail(chain.bind(function(one) {
+    chain.push(d1.promise).fail(chain.bind(function(one) {
         test.equal(one, 1);
         count++;
     }));
@@ -156,43 +146,47 @@ exports.singleDeferredFail = function(test) {
     });
 
     d1.reject(1);
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.singleDeferredDoneAdd = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
     chain.done(function() {
         count++;
     });
-    chain.add(d1).done(function() {
+    chain.add(d1.promise).done(function() {
         count++;
     }).fail(function () {
         test.fail();
     });
 
     d1.resolve();
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.twoDeferrdsOrderedResolve = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
-    chain.push(d1).done(function(one) {
+    chain.push(d1.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 0);
     }).fail(function() {
         test.fail();
     });
 
-    chain.push(d2).done(function(one) {
+    chain.push(d2.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 1);
     }).fail(function () {
@@ -201,24 +195,26 @@ exports.twoDeferrdsOrderedResolve = function(test) {
 
     d1.resolve(1);
     d2.resolve(1);
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    });
 };
 
 exports.twoDeferredsBackwardsResolve = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
-    chain.push(d1).done(function(one) {
+    chain.push(d1.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 0);
     }).fail(function () {
         test.fail();
     });
 
-    chain.push(d2).done(function(one) {
+    chain.push(d2.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 1);
     }).fail(function () {
@@ -227,23 +223,25 @@ exports.twoDeferredsBackwardsResolve = function(test) {
 
     d2.resolve(1);
     d1.resolve(1);
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    });
 };
 
 exports.twoDeferredsFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
-    chain.push(d1).fail(function() {
+    chain.push(d1.promise).fail(function() {
         test.equal(order++, 0);
     }).fail(function () {
         test.equal(order++, 1);
     });
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.fail();
     }).fail(function() {
         test.fail();
@@ -251,78 +249,86 @@ exports.twoDeferredsFail = function(test) {
 
     d2.resolve();
     d1.reject();
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    });
 };
 
 exports.twoDeferredsPreFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         c;
     d1.reject();
 
-    chain.push(d1).fail(function() {
+    //q calls the fail in a nextTick so put this before the nextTick callback
+    chain.push(d1.promise).fail(function() {
         test.equal(order++, 0);
-    }).fail(function () {
+    }).fail(function() {
         test.equal(order++, 1);
     });
+    process.nextTick(function() {
+        c = chain.push(d2.promise).done(function() {
+            test.fail();
+        }).fail(function() {
+            test.fail();
+        });
+        //make sure we aren't leaking memory
+        if (c.callbacks != null && c.callbacks.length > 0) {
+            test.fail();
+        }
 
-    c = chain.push(d2).done(function() {
-        test.fail();
-    }).fail(function() {
-        test.fail();
+        d2.resolve();
+        process.nextTick(function() {
+            test.equal(order, 2);
+            test.done();
+        });
     });
-    //make sure we aren't leaking memory
-    if (c.callbacks != null && c.callbacks.length > 0) {
-        test.fail();
-    }
-
-    d2.resolve();
-    test.equal(order, 2);
-    test.done();
 };
 
 exports.twoDeferredsOneIgnoredFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
     chain.fail(function() {
         test.fail();
     });
 
-    chain.pushIgnoreFail(d1).done(function() {
+    chain.pushIgnoreFail(d1.promise).done(function() {
         test.fail();
     }).fail(function(one) {
         test.equal(one, 1);
         test.equal(order++, 0);
     });
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 1);
     });
 
     d1.reject(1);
     d2.resolve();
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    });
 };
 
 exports.threeDeferredsWithDone = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     chain.done(function() {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function() {
+    chain.push(d1.promise).done(function() {
         test.equal(order++, 1);
     });
 
@@ -330,80 +336,84 @@ exports.threeDeferredsWithDone = function(test) {
         test.equal(order++, 2);
     }, true);
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 3);
     });
 
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         test.equal(order++, 4);
     });
 
     d1.resolve();
     d3.resolve();
     d2.resolve();
-    test.equal(order, 5);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 5);
+        test.done();
+    });
 };
 
 exports.threeDeferredsOneFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     chain.fail(function() {
         test.fail();
     });
 
-    chain.pushIgnoreFail(d1).done(function() {
+    chain.pushIgnoreFail(d1.promise).done(function() {
         test.fail();
     }).fail(function() {
         test.equal(order++, 0);
     });
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 1);
     });
 
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         test.equal(order++, 2);
     });
 
     d2.resolve();
     d1.reject();
     d3.resolve();
-    test.equal(order, 3);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 3);
+        test.done();
+    });
 };
 
 exports.fiveDeferredsWithInnerAdds = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred(),
-        d4 = new $.Deferred(),
-        d5 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer(),
+        d4 = Q.defer(),
+        d5 = Q.defer();
 
-    chain.add(d1).done(function() {
+    chain.add(d1.promise).done(function() {
         test.equal(order, 0);
 
-        chain.push(d5).done(function() {
+        chain.push(d5.promise).done(function() {
             order++;
             test.equal(order, 2);
         });
 
     });
 
-    chain.add(d2).done(function() {
+    chain.add(d2.promise).done(function() {
         test.equal(order, 0);
-        chain.add(d4).done(function() {
+        chain.add(d4.promise).done(function() {
             test.equal(order, 2);
         });
     });
 
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         order++;
         test.equal(order, 1);
     });
@@ -413,33 +423,35 @@ exports.fiveDeferredsWithInnerAdds = function(test) {
     d1.resolve();
     d2.resolve();
     d4.resolve();
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    })
 };
 
 exports.threeDeferredsOneAddFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     chain.fail(function() {
         test.equal(order, 0);
     });
 
-    chain.addIgnoreFail(d1).done(function() {
+    chain.addIgnoreFail(d1.promise).done(function() {
         test.fail();
     }).fail(function() {
         test.equal(order, 0);
     });
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         order++;
         test.equal(order, 1);
     });
 
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         order++;
         test.equal(order, 2);
     });
@@ -447,31 +459,33 @@ exports.threeDeferredsOneAddFail = function(test) {
     d1.reject();
     d2.resolve();
     d3.resolve();
-    test.equal(order, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 2);
+        test.done();
+    });
 };
 
 exports.chainCeption = function(test) {
     var chain = new ChainLoading(),
         chain2 = new ChainLoading(),
         order = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
-    chain2.push(d2);
+    chain2.push(d2.promise);
     chain2.done(function() {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function() {
+    chain.push(d1.promise).done(function() {
         test.equal(order++, 1);
     });
     chain.push(chain2);
     chain.done(function() {
         test.equal(order++, 2);
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         test.equal(order++, 3);
     });
     chain.fail(function() {
@@ -481,29 +495,31 @@ exports.chainCeption = function(test) {
     d2.resolve();
     d3.resolve();
     d1.resolve();
-    test.equal(order, 4);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 4);
+        test.done();
+    })
 };
 
 exports.chainCeptionFail = function(test) {
     var chain = new ChainLoading(),
         chain2 = new ChainLoading(),
         count = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     chain2.fail(function() {
         count++;
     });
-    chain2.push(d2);
+    chain2.push(d2.promise);
 
-    chain.push(d1);
+    chain.push(d1.promise);
     chain.push(chain2);
     chain.done(function() {
         test.fail();
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         test.fail();
     });
     chain.fail(function() {
@@ -513,29 +529,31 @@ exports.chainCeptionFail = function(test) {
     d2.reject();
     d3.resolve();
     d1.resolve();
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.chainCeptionIgnoreFail = function(test) {
     var chain = new ChainLoading(),
         chain2 = new ChainLoading(),
         count = 0,
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     chain2.fail(function() {
         count++;
     });
-    chain2.push(d2);
+    chain2.push(d2.promise);
 
-    chain.push(d1);
+    chain.push(d1.promise);
     chain.pushIgnoreFail(chain2);
     chain.done(function() {
         count++;
     });
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         count++;
     });
     chain.fail(function() {
@@ -545,16 +563,18 @@ exports.chainCeptionIgnoreFail = function(test) {
     d2.reject();
     d3.resolve();
     d1.resolve();
-    test.equal(count, 3);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 3);
+        test.done();
+    });
 };
 
 exports.singleFailAfterCallback = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         count = 0;
 
-    chain.push(d1).fail(function() {
+    chain.push(d1.promise).fail(function() {
         count++;
     });
 
@@ -562,57 +582,60 @@ exports.singleFailAfterCallback = function(test) {
     chain.fail(function() {
         count++;
     });
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.bindBeforeAfterCompleted = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         order = 0;
 
-
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function() {
+    chain.push(d1.promise).done(function() {
         test.equal(order++, 1);
     });
 
-    d1.done(chain.bind(function() {
+    d1.promise.done(chain.bind(function() {
         test.equal(order++, 2);
     }));
     d1.resolve();
-    d1.done(chain.bind(function() {
+    d1.promise.done(chain.bind(function() {
         test.equal(order++, 3);
     }));
     d2.resolve();
-    d1.done(chain.bind(function() {
+    d1.promise.done(chain.bind(function() {
         test.equal(order++, 4);
     }));
-    test.equal(order, 5);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 5);
+        test.done();
+    });
 };
 
 exports.pushAfterCompleted = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         order = 0;
 
-    chain.push(d1).done(function(one) {
+    chain.push(d1.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 0);
     });
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 1);
     });
 
     d1.resolve(1);
-    chain.push(d1).done(function(one) {
+    chain.push(d1.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 2);
     });
@@ -620,22 +643,24 @@ exports.pushAfterCompleted = function(test) {
         test.equal(order++, 3);
     });
     d2.resolve();
-    test.equal(order, 4);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 4);
+        test.done();
+    });
 };
 
 exports.completedBeforeAdded = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         order = 0;
 
     d1.resolve(1);
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
         test.equal(order++, 0);
     });
 
-    chain.push(d1).done(function(one) {
+    chain.push(d1.promise).done(function(one) {
         test.equal(one, 1);
         test.equal(order++, 1);
     });
@@ -644,28 +669,31 @@ exports.completedBeforeAdded = function(test) {
     chain.done(function() {
         test.equal(order++, 2);
     });
-    test.equal(order, 3);
-    test.done();
+    process.nextTick(function() {
+        test.equal(order, 3);
+        test.done();
+    });
 };
 
 exports.forkMe = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer(),
         order = 0, chain2;
 
-    chain.push(d2).done(function() {
+    chain.push(d2.promise).done(function() {
+        console.log("done with d2");
         test.equal(order++, 0);
     });
 
     chain2 = chain.fork();
-    chain2.push(d1).done(function() {
+    chain2.push(d1.promise).done(function() {
         test.equal(order++, 2);
     });
 
     //this is a separate chain now so its technically dependant on the order of the resolve
-    chain.push(d3).done(function() {
+    chain.push(d3.promise).done(function() {
         test.equal(order++, 1);
     });
     chain.push(chain2);
@@ -675,71 +703,73 @@ exports.forkMe = function(test) {
 
     d2.resolve();
     d3.resolve();
-    d1.resolve();
-    test.equal(order, 4);
-    test.done();
+    //since Q calls all the callbacks in a nextTick we need to kinda control how they're resolved blah
+    process.nextTick(function() {
+        d1.resolve();
+        process.nextTick(function() {
+            test.equal(order, 4);
+            test.done();
+        });
+    });
 };
 
 exports.storeApplyArgs = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         _this = this;
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.applyArgs(function(one, two, three) {
+    chain.push(d1.promise).done(chain.storeArgs);
+    chain.push(d2.promise).done(chain.applyArgs(function(one, two) {
         test.equal(one, 1);
         test.equal(two, 2);
-        test.equal(three, 3);
         test.equal(_this, this);
         test.done();
     }, this));
 
-    d2.resolve(2, 3);
+    d2.resolve(2);
     d1.resolve(1);
 };
 
 exports.storeApplyArgsBackwards = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         _this = this;
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.applyArgs(function (one, two, three) {
+    chain.push(d1.promise).done(chain.storeArgs);
+    chain.push(d2.promise).done(chain.applyArgs(function (one, two) {
         test.equal(one, 1);
         test.equal(two, 2);
-        test.equal(three, 3);
         test.equal(_this, this);
         test.done();
     }, this));
 
     d1.resolve(1);
-    d2.resolve(2, 3);
+    d2.resolve(2);
 };
 
 exports.onlyApplyArgs = function (test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         _this = this;
 
-    chain.push(d1).done(chain.applyArgs(function (one, two) {
+    chain.push(d1.promise).done(chain.applyArgs(function (one) {
         test.equal(one, 1);
-        test.equal(two, 2);
         test.equal(_this, this);
         test.done();
     }, this));
 
-    d1.resolve(1, 2);
+    d1.resolve(1);
 };
 
 exports.storeApplyArgsFail = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
-    chain.pushIgnoreFail(d1).fail(chain.storeArgs(1));
-    chain.push(d2).done(chain.applyArgs(function(one, two) {
+    chain.pushIgnoreFail(d1.promise).fail(chain.storeArgs(1));
+    chain.push(d2.promise).done(chain.applyArgs(function(one, two) {
         test.equal(one, 1);
         test.equal(two, 2);
         test.done();
@@ -751,9 +781,9 @@ exports.storeApplyArgsFail = function(test) {
 
 exports.storeApplyArgsCurryDone = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred();
+        d1 = Q.defer();
 
-    chain.push(d1).done(chain.storeArgs(0)).done(chain.storeArgs);
+    chain.push(d1.promise).done(chain.storeArgs(0)).done(chain.storeArgs);
     chain.done(chain.storeArgs(2));
     chain.done(chain.applyArgs(function(zero, one, two) {
         test.equal(zero, 0);
@@ -767,10 +797,10 @@ exports.storeApplyArgsCurryDone = function(test) {
 
 exports.storeApplyArgsStupidDone = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred();
+        d1 = Q.defer();
 
     //we do NOT support currying for storeArgs
-    chain.push(d1).done(chain.storeArgs(1));
+    chain.push(d1.promise).done(chain.storeArgs(1));
     chain.done(chain.applyArgs(function(one, undef) {
         test.equal(one, 1);
         test.equal(undef, undefined);
@@ -782,11 +812,11 @@ exports.storeApplyArgsStupidDone = function(test) {
 
 exports.storeApplyArgsCurryTwoDfds = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.storeArgs);
+    chain.push(d1.promise).done(chain.storeArgs);
+    chain.push(d2.promise).done(chain.storeArgs);
 
     chain.done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
@@ -801,13 +831,13 @@ exports.storeApplyArgsCurryTwoDfds = function(test) {
 
 exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer();
 
     d2.resolve(2);
 
-    chain.push(d1).done(chain.storeArgs);
-    chain.push(d2).done(chain.storeArgs);
+    chain.push(d1.promise).done(chain.storeArgs);
+    chain.push(d2.promise).done(chain.storeArgs);
 
     chain.done(chain.applyArgs(function(one, two, three) {
         test.equal(one, 1);
@@ -821,31 +851,29 @@ exports.storeApplyArgsCurryTwoDfdsAlreadyDone = function(test) {
 
 exports.threeDeferredsOnePush = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
-    chain.push(d1, d2, d3).done(function(one, two, three, four, five) {
+    chain.push(d1.promise, d2.promise, d3.promise).done(function(one, two, three) {
         test.equal(one, 1);
         test.equal(two, 2);
         test.equal(three, 3);
-        test.equal(four, 4);
-        test.equal(five, 5);
         test.done();
     });
 
     d1.resolve(1);
-    d3.resolve(5);
-    d2.resolve(2, 3, 4);
+    d3.resolve(3);
+    d2.resolve(2);
 };
 
 exports.threeDeferredsOneFailed = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
-    chain.push(d1, d2, d3).done(function() {
+    chain.push(d1.promise, d2.promise, d3.promise).done(function() {
         test.fail();
     }).fail(function() {
         test.done();
@@ -858,11 +886,11 @@ exports.threeDeferredsOneFailed = function(test) {
 
 exports.deferredsOneFailedChainFail = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         count = 0;
 
-    chain.push(d1, d2).done(function() {
+    chain.push(d1.promise, d2.promise).done(function() {
         test.fail();
     }).fail(function () {
         count++;
@@ -874,104 +902,120 @@ exports.deferredsOneFailedChainFail = function(test) {
 
     d1.resolve();
     d2.reject();
-    test.equal(count, 2);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
 };
 
 exports.state = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
-        d3 = new $.Deferred();
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        d3 = Q.defer();
 
     test.equal(chain.state(), 'pending');
 
-    chain.push(d3);
+    chain.push(d3.promise);
     d3.resolve();
 
-    test.equal(chain.state(), 'resolved');
 
-    chain.push(d1);
+    process.nextTick(function() {
+        test.equal(chain.state(), 'resolved');
 
-    test.equal(chain.state(), 'pending');
+        chain.push(d1.promise);
 
-    chain.push(d2);
-    d2.reject();
+        test.equal(chain.state(), 'pending');
 
-    test.equal(chain.state(), 'rejected');
+        chain.push(d2.promise);
+        d2.reject();
 
-    d1.resolve();
+        process.nextTick(function() {
+            test.equal(chain.state(), 'rejected');
 
-    test.equal(chain.state(), 'rejected');
-    test.done();
+            d1.resolve();
+            process.nextTick(function() {
+                test.equal(chain.state(), 'rejected');
+                test.done();
+            });
+        });
+    });
 };
 
 exports.singleDeferredPromiseDone = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         promise = chain.promise(),
         count = 0;
 
-    chain.push(d1);
+    chain.push(d1.promise);
     promise.done(function() {
         count++;
     });
 
     d1.resolve();
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.twoDeferredsPromiseDone = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
-        d2 = new $.Deferred(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
         promise = chain.promise(),
         count = 0;
 
-    chain.push(d1);
+    chain.push(d1.promise);
     promise.done(function() {
         test.equal(count, 0);
         count++;
     });
 
-    chain.push(d2);
+    chain.push(d2.promise);
     promise.done(function() {
         test.equal(count, 1);
         count++;
     });
 
     d1.resolve();
-    test.equal(count, 1);
+    process.nextTick(function() {
+        test.equal(count, 1);
 
-    d2.resolve();
-    test.equal(count, 2);
-    test.done();
+        d2.resolve();
+        process.nextTick(function() {
+            test.equal(count, 2);
+            test.done();
+        });
+    });
 };
 
 exports.singleDeferredPromiseAlways = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         promise = chain.promise(),
         count = 0;
 
-    chain.push(d1);
+    chain.push(d1.promise);
     promise.always(function() {
         count++;
     });
 
     d1.resolve();
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.singleDeferredPromiseThen = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         promise = chain.promise(),
         count = 0;
 
-    chain.push(d1);
+    chain.push(d1.promise);
     promise.then(function() {
         test.fail();
     }, function() {
@@ -979,18 +1023,22 @@ exports.singleDeferredPromiseThen = function(test) {
     });
 
     d1.reject();
-    test.equal(count, 1);
-    test.done();
+    process.nextTick(function() {
+        test.equal(count, 1);
+        test.done();
+    });
 };
 
 exports.singleDeferredPromiseState = function(test) {
     var chain = new ChainLoading(),
-        d1 = new $.Deferred(),
+        d1 = Q.defer(),
         promise = chain.promise();
 
-    chain.push(d1);
+    chain.push(d1.promise);
 
     d1.resolve();
-    test.equal(promise.state(), 'resolved');
-    test.done();
+    process.nextTick(function() {
+        test.equal(promise.state(), 'resolved');
+        test.done();
+    });
 };

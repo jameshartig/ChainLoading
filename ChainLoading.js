@@ -205,7 +205,6 @@
 
             //add handlers to the deferred so we can store the state it resolved as and the args it returned
             (function(obj) {
-                var onFail;
                 obj.d.then(function() {
                     obj.args = slice.call(arguments);
                     obj.s = 1;
@@ -224,9 +223,7 @@
                     });
 
                     onResolve();
-                });
-
-                onFail = function() {
+                }, function() {
                     //overwrite the args on the response since we failed, we want the failed stuff to get called with the failed args
                     resp.args = slice.call(arguments);
 
@@ -246,12 +243,7 @@
                         complete = true;
                         onComplete('rejected', resp);
                     }
-                };
-                if (obj.d['catch'] !== undefined) {
-                    obj.d['catch'](onFail);
-                } else {
-                    obj.d.fail(onFail);
-                }
+                });
             }(allDfds[i]));
         }
         //start allowing resolving now

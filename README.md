@@ -3,6 +3,8 @@ Allows you to chain together deferreds or functions and control the order at whi
 The benefit being that all methods are called immediately and the callbacks are called in the order you want.
 This can make loading a page that requires multiple API calls much faster since the API calls will happen in parallel.
 
+This library officially supports jQuery's deferreds and q's deferreds. Any class with `then` *should* work though.
+
 Let's get straight into an example for rendering a user's profile page:
 ```JS
 var chain = new ChainLoading();
