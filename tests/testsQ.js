@@ -683,7 +683,6 @@ exports.forkMe = function(test) {
         order = 0, chain2;
 
     chain.push(d2.promise).done(function() {
-        console.log("done with d2");
         test.equal(order++, 0);
     });
 

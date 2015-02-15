@@ -164,8 +164,19 @@
             complete = false,
             canResolve = false;
 
+        function callOnComplete(state) {
+            if (complete) {
+                return;
+            }
+            complete = true;
+            //make sure allDfds is empty
+            allDfds.length = 0;
+            onComplete(state, resp);
+        }
+
         function onResolve() {
             //loop through the deferreds and build the response args array in order
+            //we must wait until canResolve is true otherwise we're still looping through allDfds so we can't splice
             for (var i = 0; i < allDfds.length && canResolve && !complete; i++) {
                 //once we hit one that isn't resolved then break
                 if (allDfds[i].s === 0) {
@@ -177,9 +188,8 @@
                 allDfds.splice(i, 1);
                 i--;
             }
-            if (allDfds.length === 0 && !complete) {
-                complete = true;
-                onComplete('resolved', resp);
+            if (allDfds.length === 0) {
+                callOnComplete('resolved');
             }
         }
 
@@ -206,6 +216,10 @@
             //add handlers to the deferred so we can store the state it resolved as and the args it returned
             (function(obj) {
                 obj.d.then(function() {
+                    if (obj.s !== 0) {
+                        return;
+                    }
+
                     obj.args = slice.call(arguments);
                     obj.s = 1;
 
@@ -224,8 +238,12 @@
 
                     onResolve();
                 }, function() {
+                    if (obj.s !== 0) {
+                        return;
+                    }
                     //overwrite the args on the response since we failed, we want the failed stuff to get called with the failed args
                     resp.args = slice.call(arguments);
+                    obj.s = 1;
 
                     var dfd = this;
                     promise.fail(function() {
@@ -239,10 +257,9 @@
                             }
                         }
                     });
-                    if (!complete) {
-                        complete = true;
-                        onComplete('rejected', resp);
-                    }
+
+                    //if we failed, we can immediately stop and bail
+                    callOnComplete('rejected');
                 });
             }(allDfds[i]));
         }
