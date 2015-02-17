@@ -1,8 +1,8 @@
 {
   "name": "chainloading",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Allows you to chain together jQuery deferreds or functions",
-  "main": "chainLoading.js",
+  "main": "ChainLoading.js",
   "directories": {
     "test": "tests"
   },
