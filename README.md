@@ -105,3 +105,5 @@ You can bring the 2 back together using push/add later if you choose.
 ## Caveats ##
 
 * Does not emit `progress` events for deferreds that utilize `notify`.
+
+By [James Hartig](https://github.com/fastest963/)
