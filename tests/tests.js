@@ -307,11 +307,36 @@ exports.twoDeferredsPreFail = function(test) {
     test.done();
 };
 
+exports.twoDeferredsMiddleFail = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        canFail = false,
+        c;
+
+    chain.push(d1).done(function() {
+        canFail = true;
+    });
+
+    d2.reject();
+    c = chain.push(d2).fail(function() {
+        test.ok(canFail);
+    });
+    c.fail(function() {
+        test.ok(canFail);
+    });
+
+    d1.resolve();
+    test.ok(canFail);
+    test.done();
+};
+
 exports.twoDeferredsOneIgnoredFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = new $.Deferred(),
-        d2 = new $.Deferred();
+        d2 = new $.Deferred(),
+        promise = chain.promise();
 
     chain.fail(function() {
         test.fail();
@@ -331,6 +356,7 @@ exports.twoDeferredsOneIgnoredFail = function(test) {
     d1.reject(1);
     d2.resolve();
     test.equal(order, 2);
+    test.equal(promise.state(), 'resolved');
     test.done();
 };
 
@@ -1021,5 +1047,43 @@ exports.singleDeferredPromiseState = function(test) {
 
     d1.resolve();
     test.equal(promise.state(), 'resolved');
+    test.done();
+};
+
+exports.stopChainBeforeAdding = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        promise = chain.promise();
+
+    chain.stop();
+    chain.push(d1).always(function() {
+        test.fail();
+    });
+
+    d1.resolve();
+    test.equal(promise.state(), 'rejected');
+
+    chain.fail(function() {
+        test.fail();
+    });
+    test.done();
+};
+
+exports.stopChainMiddle = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.push(d1).always(function() {
+        //the stop() should prevent this from firing
+        test.fail();
+    });
+    chain.push(d2).always(function() {
+        test.fail();
+    });
+
+    d2.resolve();
+    chain.stop();
+    d1.reject();
     test.done();
 };

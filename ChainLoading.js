@@ -35,60 +35,48 @@
         this.dfds = [];
         this.failCallbacks = [];
         this.nextLevel = null;
+        this.prevLevel = null;
     }
-    LevelContainer.prototype.newGroup = function(dfds, onComplete, globalCallbacks, completedDeferreds) {
+    LevelContainer.prototype.newGroup = function(dfds, stateOnFail, globalCallbacks, completedDeferreds) {
         if (this.state === '') { //if we haven't finished yet and we just added a new group, we're NOT complete
             this.completed = false;
         }
         var o = {s: 0, r: this.ready},
+            level = this,
             group;
         this.dfds.push(o);
-        group = new GroupedDfd(this.chain, dfds, function(s, g) {
+        group = new GroupedDfd(dfds, function(s, g) {
             o.g = g; //store the group on the object, so we can call complete on it
             o.s = 1;
-            onComplete(s);
+
+            switch (s) {
+                case 'resolved':
+                    //don't overwrite with resolved if we already got a state
+                    if (level.state === '') {
+                        level.state = 'resolved';
+                    }
+                    break;
+                case 'rejected':
+                    //don't overwrite stopped
+                    if (level.state !== 'stopped') {
+                        level.state = stateOnFail;
+                    }
+                    break;
+            }
+            level.complete();
         }, globalCallbacks, completedDeferreds);
 
         return group;
     };
     LevelContainer.prototype.requireDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
-        var level = this;
-        return this.newGroup(dfds, function(s) {
-            switch (s) {
-                case 'resolved':
-                    //don't overwrite with resolved if we already got a state
-                    if (level.state === '') {
-                        level.state = 'resolved';
-                    }
-                    break;
-                case 'rejected':
-                    //this should ALWAYS overwrite
-                    level.state = 'rejected';
-                    break;
-            }
-            level.complete();
-        }, globalCallbacks, completedDeferreds).promise;
+        return this.newGroup(dfds, 'rejected', globalCallbacks, completedDeferreds).promise;
     };
     LevelContainer.prototype.optionalDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
-        var level = this;
-        return this.newGroup(dfds, function(s) {
-            switch (s) {
-                case 'resolved':
-                    //don't overwrite with resolved if we already got a state
-                    if (level.state === '') {
-                        level.state = 'resolved';
-                    }
-                    break;
-                case 'rejected':
-                    //this should ALWAYS overwrite
-                    level.state = 'ignored'; //still required to finish but if they fail, nbd
-                    break;
-            }
-            level.complete();
-        }, globalCallbacks, completedDeferreds).promise;
+        return this.newGroup(dfds, 'ignored', globalCallbacks, completedDeferreds).promise;
     };
     LevelContainer.prototype.addFailCallback = function(f) {
         //if we already failed, immediately call
+        //README states that fail() is called whenever previous levels failed
         if (this.state === 'ignored' || this.state === 'rejected') {
             f.call(this.chain);
         } else if (!this.completed || this.state === '') {
@@ -105,7 +93,11 @@
         if (this.ready !== true) {
             return;
         }
-        for (var i = 0; i < this.dfds.length; i++) {
+        //if the state is "ignored" then we need to reject the deferreds still attached to this level
+        //the normalizedState returns "resolved" since to *everything else* its resolved
+        var normalizedState = this.state === 'ignored' ? 'rejected' : this.normalizedState(),
+            i;
+        for (i = 0; i < this.dfds.length; i++) {
             if (typeof this.dfds[i] === 'function') {
                 this.dfds[i]();
             } else {
@@ -113,29 +105,30 @@
                 if (this.dfds[i].s === 0) { //not ready yet so we can't continue
                     break; //todo: if we don't want to maintain order in a level then make this continue or something
                 }
-                this.dfds[i].g.complete(this.state);
+                this.dfds[i].g.complete(normalizedState);
             }
             this.dfds.splice(i, 1);
             i--;
         }
-        if (this.dfds.length === 0) {
-            this.completed = true;
-        }
         //if there's a nextLevel then we should start completing that next
-        if (this.completed === true) {
+        if (this.dfds.length === 0) {
             //if we're rejected then we cannot continue and call the next level, instead just call failCallbacks
             if (this.state === 'rejected') {
-                this.failed();
+                this.completeFailed();
                 return;
             }
             this.cleanup();
+            if (this.state === 'stopped') {
+                return;
+            }
             if (this.nextLevel !== null) {
                 this.nextLevel.ready = true;
                 this.nextLevel.complete();
             }
+            this.cleanupLevelRefs();
         }
     };
-    LevelContainer.prototype.failed = function() {
+    LevelContainer.prototype.completeFailed = function() {
         for (var i = 0; i < this.failCallbacks.length; i++) {
             this.failCallbacks[i].call(this.chain);
             this.failCallbacks.splice(i, 1);
@@ -144,8 +137,9 @@
 
         this.cleanup();
         if (this.nextLevel !== null) {
-            this.nextLevel.failed();
+            this.nextLevel.completeFailed();
         }
+        this.cleanupLevelRefs();
     };
     LevelContainer.prototype.cleanup = function(cleanupNext) {
         var i, l;
@@ -154,17 +148,40 @@
             this.dfds.splice(i, 1);
             i--;
         }
+        this.completed = true;
         //just empty the array
         for (i = 0, l = this.failCallbacks.length; i < l; i++) {
             this.failCallbacks.shift();
         }
-        if (this.nextLevel !== null && cleanupNext) {
-            this.nextLevel.cleanup(cleanupNext);
+    };
+    LevelContainer.prototype.cleanupLevelRefs = function() {
+        this.nextLevel = null;
+        this.prevLevel = null;
+    };
+    LevelContainer.prototype.normalizedState = function() {
+        //if the state is 'stopped' then it should actually be 'rejected'
+        if (this.state === 'stopped') {
+            return 'rejected';
         }
+        if (this.state === 'ignored') {
+            return 'resolved';
+        }
+        //state is '' when its pending
+        return this.state || 'pending';
+    };
+    LevelContainer.prototype.stop = function(cleanupNext) {
+        //don't let this complete
+        this.ready = false;
+        this.state = 'stopped';
+        this.cleanup();
+        if (this.nextLevel !== null) {
+            this.nextLevel.stop();
+        }
+        this.cleanupLevelRefs();
     };
 
     //todo: remove globalCallbacks and completedDeferreds
-    function GroupedDfd(chain, deferreds, onComplete, globalCallbacks, completedDeferreds) {
+    function GroupedDfd(deferreds, onComplete, globalCallbacks, completedDeferreds) {
         this.args = [];
         this.promise = new GroupedDfdPromise();
         var resp = this,
@@ -283,7 +300,7 @@
         var callbacks = this.promise.callbacks,
             i;
         if (this.promise.s === 'pending') {
-            this.promise.s = s === 'ignored' ? 'rejected' : s;
+            this.promise.s = s;
             this.promise.args = this.args;
         }
         for (i = 0; i < callbacks.length; i++) {
@@ -372,11 +389,14 @@
         var self = this,
             deferredCallbacks = [],
             completedDeferreds = new CompletedMap(), //deferreds that have completed, used for binds that happened after a push/add
-            globalFailCallbacks = [],
+            globalFailCallbacks,
             storedArgs, currentLevel,
             promise;
 
         function levelFailed() {
+            if (globalFailCallbacks === undefined) {
+                return;
+            }
             for (var i = 0; i < globalFailCallbacks.length; i++) {
                 globalFailCallbacks[i].call(self);
                 globalFailCallbacks.splice(i, 1);
@@ -387,9 +407,12 @@
         function newLevel() {
             var hasCurrentLevel = currentLevel !== undefined,
                 newLevel = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
-            newLevel.addFailCallback(levelFailed);
+            if (globalFailCallbacks !== undefined) {
+                newLevel.addFailCallback(levelFailed);
+            }
             if (hasCurrentLevel) {
                 currentLevel.nextLevel = newLevel;
+                newLevel.prevLevel = currentLevel;
                 //we only need to have the levelFailed on the LAST level, we don't need it on all the levels in between
                 currentLevel.removeFailCallback(levelFailed);
             }
@@ -403,7 +426,7 @@
 
         function push(func, args) {
             //if we've already failed then just short-circuit
-            if (currentLevel !== undefined && currentLevel.state === 'rejected') {
+            if (currentLevel !== undefined && currentLevel.normalizedState() === 'rejected') {
                 return new EmptyPromise();
             }
             newLevel();
@@ -412,7 +435,7 @@
         function add(func, args) {
             if (currentLevel === undefined) {
                 newLevel();
-            } else if (currentLevel.state === 'rejected') {
+            } else if (currentLevel.normalizedState() === 'rejected') {
                 return new EmptyPromise();
             }
             return currentLevel[func](args, deferredCallbacks, completedDeferreds);
@@ -443,9 +466,24 @@
             return add('optionalDeferreds', slice.call(arguments));
         };
 
+        this.stop = function() {
+            var levelToStop = currentLevel;
+            if (levelToStop === undefined) {
+                levelToStop = newLevel();
+            } else {
+                //find the first level that we still have around
+                while (levelToStop.prevLevel !== null && (levelToStop = levelToStop.prevLevel)) {}
+            }
+            levelToStop.stop();
+            return this;
+        };
+
         this.fail = this['catch'] = function(func) {
             if (currentLevel === undefined) {
-                //global blah
+                //todo: if there's a better way to do this, that'd be awesome
+                if (globalFailCallbacks === undefined) {
+                    globalFailCallbacks = [];
+                }
                 globalFailCallbacks.push(func);
             } else {
                 currentLevel.addFailCallback(func);
@@ -527,9 +565,7 @@
             if (currentLevel === undefined) {
                 return 'pending';
             }
-            //state defaults to '' so return 'pending'
-            //if the state is 'ignored' then it should actually be 'rejected'
-            return (currentLevel.state === 'ignored' ? 'rejected' : currentLevel.state) || 'pending';
+            return currentLevel.normalizedState();
         };
 
         this.promise = function() {

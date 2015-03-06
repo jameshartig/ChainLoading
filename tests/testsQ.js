@@ -313,11 +313,40 @@ exports.twoDeferredsPreFail = function(test) {
     });
 };
 
+exports.twoDeferredsMiddleFail = function(test) {
+    var chain = new ChainLoading(),
+        d1 = Q.defer(),
+        d2 = Q.defer(),
+        canFail = false,
+        c;
+
+    chain.push(d1.promise).done(function() {
+        canFail = true;
+    });
+
+    d2.reject();
+    process.nextTick(function() {
+        c = chain.push(d2.promise).fail(function() {
+            test.ok(canFail);
+        });
+        c.fail(function() {
+            test.ok(canFail);
+        });
+
+        d1.resolve();
+        process.nextTick(function() {
+            test.ok(canFail);
+            test.done();
+        });
+    });
+};
+
 exports.twoDeferredsOneIgnoredFail = function(test) {
     var chain = new ChainLoading(),
         order = 0,
         d1 = Q.defer(),
-        d2 = Q.defer();
+        d2 = Q.defer(),
+        promise = chain.promise();
 
     chain.fail(function() {
         test.fail();
@@ -338,6 +367,7 @@ exports.twoDeferredsOneIgnoredFail = function(test) {
     d2.resolve();
     process.nextTick(function() {
         test.equal(order, 2);
+        test.equal(promise.state(), 'resolved');
         test.done();
     });
 };
@@ -1072,5 +1102,48 @@ exports.singleDeferredPromiseState = function(test) {
     process.nextTick(function() {
         test.equal(promise.state(), 'resolved');
         test.done();
+    });
+};
+
+exports.stopChainBeforeAdding = function(test) {
+    var chain = new ChainLoading(),
+        d1 = Q.defer(),
+        promise = chain.promise();
+
+    chain.stop();
+    chain.push(d1.promise).always(function() {
+        test.fail();
+    });
+
+    d1.resolve();
+    chain.fail(function() {
+        test.fail();
+    });
+    process.nextTick(function() {
+        test.equal(promise.state(), 'rejected');
+        test.done();
+    });
+};
+
+exports.stopChainMiddle = function(test) {
+    var chain = new ChainLoading(),
+        d1 = Q.defer(),
+        d2 = Q.defer();
+
+    chain.push(d1.promise).always(function() {
+        //the stop() should prevent this from firing
+        test.fail();
+    });
+    chain.push(d2.promise).always(function() {
+        test.fail();
+    });
+
+    d2.resolve();
+    process.nextTick(function() {
+        chain.stop();
+        d1.reject();
+        process.nextTick(function() {
+            test.done();
+        });
     });
 };

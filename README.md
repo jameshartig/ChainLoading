@@ -46,21 +46,27 @@ Order is **not** guaranteed within a "level". If you require order, then always 
 This is useful when you have a group of deferreds that are independent of each other but all depend on an earlier "level".
 
 ### pushIgnoreFail(deferred) ###
-Same as `push()` except that any failures will not cause the chain to stop.
+Same as `push()` except that any failures will not cause the chain to stop. Only `fail` callbacks attached to the deferred
+that is returned will get called (global fail callbacks and future-level fail callbacks will NOT get called).
 
 ### addIgnoreFail(deferred) ###
-Same as `add()` except that any failures will not cause the chain to stop.
+Same as `pushIgnoreFail()` except it adds the deferred to the current "level".
 
 ### after(func) ###
 Adds a function to be called once the previous "levels" complete. Useful at the end of all your deferreds for knowing when
 everything completed.
 
 ### fail(func) ###
-Func is called whenever previous "levels" failed. Useful at the end of all your deferreds for knowing if the chain failed.
+Func is called once whenever previous "levels" failed. Useful at the end of all your deferreds for knowing if the chain failed.
+A fail callback added at the very beginning of a chain (before any push's or add's) is called once when ANY level fails.
 
 ### promise() ###
 Returns a promise object with `done`, `fail`, `always`, `then` function that map to each of the chain's methods. Useful to
 return at the end of a function utilizing a chain so the caller can do `func().done(itsDone)` to know when the function is done.
+
+### state() ###
+Returns the current state of a the chain. It can be `rejected`, `resolved`, or `pending`. If the chain was stopped via `stop()`
+the state will be `rejected`. Ignored fails will NOT cause the state to be `rejected`.
  
 ## Upgrade notes ##
 
@@ -102,6 +108,10 @@ free to use this on your last deferred.
 ### fork() ###
 Returns a NEW chain that's dependent on the current level of this chain but will then run independently of this chain.
 You can bring the 2 back together using push/add later if you choose.
+
+### stop() ###
+Immediately stops calling **ANY** callbacks, including fail callbacks. The chain is unusable after this is called. You should use this
+for places where you don't want two different instances of a chain running at the same time.
 
 ## Caveats ##
 
