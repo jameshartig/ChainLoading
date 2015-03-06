@@ -137,23 +137,21 @@
             this.dfds.splice(i, 1);
             i--;
         }
-        //if there's a nextLevel then we should start completing that next
-        if (this.dfds.length === 0) {
-            //if we're rejected then we cannot continue and call the next level, instead just call failCallbacks
-            if (this.state === 'rejected') {
-                this.completeFailed();
-                return;
-            }
-            this.cleanup();
-            if (this.state === 'stopped') {
-                return;
-            }
-            if (this.nextLevel !== null) {
-                this.nextLevel.ready = true;
-                this.nextLevel.complete();
-            }
-            this.cleanupLevelRefs();
+        //if there are any dfds left, don't complete this level
+        if (this.dfds.length > 0) {
+            return;
         }
+        //if we're rejected then we cannot continue and call the next level, instead just call failCallbacks
+        if (this.state === 'rejected') {
+            this.completeFailed();
+            return;
+        }
+        this.cleanup();
+        if (this.nextLevel !== null) {
+            this.nextLevel.ready = true;
+            this.nextLevel.complete();
+        }
+        this.cleanupLevelRefs();
     };
     LevelContainer.prototype.completeFailed = function() {
         for (var i = 0; i < this.failCallbacks.length; i++) {
