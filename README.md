@@ -37,7 +37,8 @@ chain.push($.get('http://example.com/2')).done(myCallback2);
 ```
 
 ### push(deferred) ###
-Adds the deferred to a new "level". This method returns a deferred.
+Adds the deferred to a new "level". This method returns a deferred that you must call `done`, `then`, `always`, or `fail`
+on to know when the deferred is finished.
 
 ### add(deferred) ###
 Adds the deferred to the current "level". This method returns a deferred.

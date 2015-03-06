@@ -269,9 +269,14 @@ exports.twoDeferredsPreFail = function(test) {
         test.equal(order++, 1);
     });
 
-    c = chain.push(d2).done(function() {
+    c = chain.push(d2).always(function() {
         test.fail();
-    }).fail(function() {
+    });
+    //make sure we aren't leaking memory
+    if (c.callbacks != null && c.callbacks.length > 0) {
+        test.fail();
+    }
+    c = chain.add(d2).always(function() {
         test.fail();
     });
     //make sure we aren't leaking memory
@@ -860,6 +865,7 @@ exports.deferredsOneFailedChainFail = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
+        d3 = new $.Deferred(),
         count = 0;
 
     chain.push(d1, d2).done(function() {
@@ -868,10 +874,15 @@ exports.deferredsOneFailedChainFail = function(test) {
         count++;
     });
 
+    chain.push(d3).always(function() {
+        test.fail();
+    });
+
     chain.fail(function() {
         count++;
     });
 
+    d3.resolve();
     d1.resolve();
     d2.reject();
     test.equal(count, 2);

@@ -27,9 +27,9 @@
         };
     }
 
-    function LevelContainer(chain, active) {
+    function LevelContainer(chain, ready) {
         this.chain = chain;
-        this.active = active || false; //active means that we should call any callbacks as soon as they finish
+        this.ready = ready || false; //ready means that we should call any callbacks as soon as they finish
         this.completed = true; //completed means we have finished ALL deferreds assigned to us (by default we have finished them all)
         this.state = '';
         this.dfds = [];
@@ -40,52 +40,51 @@
         if (this.state === '') { //if we haven't finished yet and we just added a new group, we're NOT complete
             this.completed = false;
         }
-        var o = {s: 0, r: this.active},
+        var o = {s: 0, r: this.ready},
             group;
         this.dfds.push(o);
         group = new GroupedDfd(this.chain, dfds, function(s, g) {
-            //success
             o.g = g; //store the group on the object, so we can call complete on it
             o.s = 1;
-            onComplete(s, o.r);
+            onComplete(s);
         }, globalCallbacks, completedDeferreds);
 
         return group;
     };
     LevelContainer.prototype.requireDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
         var level = this;
-        return this.newGroup(dfds, function(s, ready) {
+        return this.newGroup(dfds, function(s) {
             switch (s) {
                 case 'resolved':
+                    //don't overwrite with resolved if we already got a state
                     if (level.state === '') {
                         level.state = 'resolved';
                     }
                     break;
                 case 'rejected':
-                    level.state = 'rejected'; //always fail no matter what the current state is
+                    //this should ALWAYS overwrite
+                    level.state = 'rejected';
                     break;
             }
-            if (ready) { //make sure we've been given clearance to resolve this
-                level.complete();
-            }
+            level.complete();
         }, globalCallbacks, completedDeferreds).promise;
     };
     LevelContainer.prototype.optionalDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
         var level = this;
-        return this.newGroup(dfds, function(s, ready) {
+        return this.newGroup(dfds, function(s) {
             switch (s) {
                 case 'resolved':
+                    //don't overwrite with resolved if we already got a state
                     if (level.state === '') {
                         level.state = 'resolved';
                     }
                     break;
                 case 'rejected':
+                    //this should ALWAYS overwrite
                     level.state = 'ignored'; //still required to finish but if they fail, nbd
                     break;
             }
-            if (ready) { //make sure we've been given clearance to resolve this
-                level.complete();
-            }
+            level.complete();
         }, globalCallbacks, completedDeferreds).promise;
     };
     LevelContainer.prototype.addFailCallback = function(f) {
@@ -96,14 +95,22 @@
             this.failCallbacks.push(f);
         }
     };
+    LevelContainer.prototype.removeFailCallback = function(f) {
+        var index = this.failCallbacks.indexOf(f);
+        if (index !== -1) {
+            this.failCallbacks.splice(index, 1);
+        }
+    };
     LevelContainer.prototype.complete = function() {
-        this.active = true;
+        if (this.ready !== true) {
+            return;
+        }
         for (var i = 0; i < this.dfds.length; i++) {
             if (typeof this.dfds[i] === 'function') {
                 this.dfds[i]();
             } else {
                 this.dfds[i].r = true; //ready
-                if (this.dfds[i].s === 0) { //not active yet so we can't continue
+                if (this.dfds[i].s === 0) { //not ready yet so we can't continue
                     break; //todo: if we don't want to maintain order in a level then make this continue or something
                 }
                 this.dfds[i].g.complete(this.state);
@@ -116,12 +123,14 @@
         }
         //if there's a nextLevel then we should start completing that next
         if (this.completed === true) {
+            //if we're rejected then we cannot continue and call the next level, instead just call failCallbacks
             if (this.state === 'rejected') {
                 this.failed();
                 return;
             }
-            this.cleanup(true);
+            this.cleanup();
             if (this.nextLevel !== null) {
+                this.nextLevel.ready = true;
                 this.nextLevel.complete();
             }
         }
@@ -133,12 +142,12 @@
             i--;
         }
 
-        this.cleanup(true);
+        this.cleanup();
         if (this.nextLevel !== null) {
             this.nextLevel.failed();
         }
     };
-    LevelContainer.prototype.cleanup = function(skipNext) {
+    LevelContainer.prototype.cleanup = function(cleanupNext) {
         var i, l;
         for (i = 0; i < this.dfds.length; i++) {
             this.dfds[i].r = false; //not ready
@@ -149,8 +158,8 @@
         for (i = 0, l = this.failCallbacks.length; i < l; i++) {
             this.failCallbacks.shift();
         }
-        if (this.nextLevel !== null && skipNext !== true) {
-            this.nextLevel.cleanup();
+        if (this.nextLevel !== null && cleanupNext) {
+            this.nextLevel.cleanup(cleanupNext);
         }
     };
 
@@ -375,29 +384,36 @@
             }
         }
 
+        function newLevel() {
+            var hasCurrentLevel = currentLevel !== undefined,
+                newLevel = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
+            newLevel.addFailCallback(levelFailed);
+            if (hasCurrentLevel) {
+                currentLevel.nextLevel = newLevel;
+                //we only need to have the levelFailed on the LAST level, we don't need it on all the levels in between
+                currentLevel.removeFailCallback(levelFailed);
+            }
+            currentLevel = newLevel; //advance level
+            return newLevel;
+        }
+
         /**
          * Exposed methods
          */
 
         function push(func, args) {
-            var hasCurrentLevel = currentLevel !== undefined,
-                newLevel;
             //if we've already failed then just short-circuit
-            if (hasCurrentLevel && currentLevel.state === 'rejected') {
+            if (currentLevel !== undefined && currentLevel.state === 'rejected') {
                 return new EmptyPromise();
             }
-            newLevel = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
-            newLevel.addFailCallback(levelFailed); //todo: somehow only add this to the LAST container so it doesn't get called on every level
-            if (hasCurrentLevel) {
-                currentLevel.nextLevel = newLevel;
-            }
-            currentLevel = newLevel; //advance level
-            return newLevel[func](args, deferredCallbacks, completedDeferreds);
+            newLevel();
+            return currentLevel[func](args, deferredCallbacks, completedDeferreds);
         }
         function add(func, args) {
             if (currentLevel === undefined) {
-                currentLevel = new LevelContainer(this, true);
-                currentLevel.addFailCallback(levelFailed); //todo: somehow only add this to the LAST container so it doesn't get called on every level
+                newLevel();
+            } else if (currentLevel.state === 'rejected') {
+                return new EmptyPromise();
             }
             return currentLevel[func](args, deferredCallbacks, completedDeferreds);
         }
@@ -427,7 +443,7 @@
             return add('optionalDeferreds', slice.call(arguments));
         };
 
-        this.done = this.after = this.then = function(func, runAtCurrent) {
+        this.done = this.after = function(func, runAtCurrent) {
             if (runAtCurrent) {
                 this.add(func);
             } else {

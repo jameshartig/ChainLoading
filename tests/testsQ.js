@@ -270,9 +270,14 @@ exports.twoDeferredsPreFail = function(test) {
         test.equal(order++, 1);
     });
     process.nextTick(function() {
-        c = chain.push(d2.promise).done(function() {
+        c = chain.push(d2.promise).always(function() {
             test.fail();
-        }).fail(function() {
+        });
+        //make sure we aren't leaking memory
+        if (c.callbacks != null && c.callbacks.length > 0) {
+            test.fail();
+        }
+        c = chain.add(d2).always(function() {
             test.fail();
         });
         //make sure we aren't leaking memory
@@ -887,6 +892,7 @@ exports.deferredsOneFailedChainFail = function(test) {
     var chain = new ChainLoading(),
         d1 = Q.defer(),
         d2 = Q.defer(),
+        d3 = Q.defer(),
         count = 0;
 
     chain.push(d1.promise, d2.promise).done(function() {
@@ -895,15 +901,22 @@ exports.deferredsOneFailedChainFail = function(test) {
         count++;
     });
 
+    chain.push(d3.promise).always(function() {
+        test.fail();
+    });
+
     chain.fail(function() {
         count++;
     });
 
-    d1.resolve();
-    d2.reject();
+    d3.resolve();
     process.nextTick(function() {
-        test.equal(count, 2);
-        test.done();
+        d1.resolve();
+        d2.reject();
+        process.nextTick(function() {
+            test.equal(count, 2);
+            test.done();
+        });
     });
 };
 
