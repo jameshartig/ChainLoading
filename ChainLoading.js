@@ -1,6 +1,7 @@
 (function(window) {
     var CompletedMap = window.WeakMap,
         slice = [].slice, //from: http://stackoverflow.com/questions/120804/difference-between-array-slice-and-array-slice/121302#121302
+        indexOf = [].indexOf,
         noopThis = function() { return this; },
         undefined;
 
@@ -26,6 +27,31 @@
             };
         };
     }
+
+    if (indexOf === undefined) {
+        indexOf = function(search, fromIndex) {
+            var len = this.length,
+                i = +fromIndex || 0;
+            if (len === 0 || i >= len) {
+                return -1;
+            }
+            //apparently passing Infinity for fromIndex means we should start at 0?
+            if (!isFinite(i)) {
+                i = 0;
+            }
+            if (i < 0) {
+                i = Math.max(len - Math.abs(i), 0);
+            }
+            while (i < len) {
+                if (this[i] === search) {
+                    return i;
+                }
+                i++;
+            }
+            return -1;
+        };
+    }
+
 
     function LevelContainer(chain, ready) {
         this.chain = chain;
@@ -84,7 +110,7 @@
         }
     };
     LevelContainer.prototype.removeFailCallback = function(f) {
-        var index = this.failCallbacks.indexOf(f);
+        var index = indexOf.call(this.failCallbacks, f);
         if (index !== -1) {
             this.failCallbacks.splice(index, 1);
         }
