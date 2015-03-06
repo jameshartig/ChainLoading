@@ -44,6 +44,24 @@ exports.singleDeferredAlways = function (test) {
     test.done();
 };
 
+exports.singleDeferredTwoAlways = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1).always(function(one) {
+        test.equal(one, 1);
+        count++;
+    }, function(one) {
+        test.equal(one, 1);
+        count++;
+    });
+
+    d1.resolve(1);
+    test.equal(count, 2);
+    test.done();
+};
+
 exports.singleDeferredAlwaysFail = function (test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),

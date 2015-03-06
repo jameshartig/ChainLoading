@@ -47,6 +47,26 @@ exports.singleDeferredAlways = function (test) {
     });
 };
 
+exports.singleDeferredTwoAlways = function(test) {
+    var chain = new ChainLoading(),
+        d1 = Q.defer(),
+        count = 0;
+
+    chain.push(d1.promise).always(function(one) {
+        test.equal(one, 1);
+        count++;
+    }).always(function(one) {
+        test.equal(one, 1);
+        count++;
+    });
+
+    d1.resolve(1);
+    process.nextTick(function() {
+        test.equal(count, 2);
+        test.done();
+    });
+};
+
 exports.singleDeferredAlwaysFail = function (test) {
     var chain = new ChainLoading(),
         d1 = Q.defer(),

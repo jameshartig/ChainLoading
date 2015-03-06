@@ -443,34 +443,6 @@
             return add('optionalDeferreds', slice.call(arguments));
         };
 
-        this.done = this.after = function(func, runAtCurrent) {
-            if (runAtCurrent) {
-                this.add(func);
-            } else {
-                this.push(func);
-            }
-            return this;
-        };
-
-        this.then = function(doneCallbacks, failCallbacks) {
-            var i, l;
-            if (typeof doneCallbacks === 'function') {
-                this.done(doneCallbacks);
-            } else if (doneCallbacks != null) {
-                for (i = 0, l = doneCallbacks.length; i < l; i++) {
-                    this.done(doneCallbacks[i]);
-                }
-            }
-            if (typeof failCallbacks === 'function') {
-                this.fail(failCallbacks);
-            } else if (failCallbacks != null) {
-                for (i = 0, l = failCallbacks.length; i < l; i++) {
-                    this.fail(failCallbacks[i]);
-                }
-            }
-            return this;
-        };
-
         this.fail = this['catch'] = function(func) {
             if (currentLevel === undefined) {
                 //global blah
@@ -551,17 +523,6 @@
             }
         };
 
-        this.always = function(func) {
-            return this.fail(func).done(func);
-        };
-
-        //makes a new chain that's initially based off the of the current level of this chain
-        this.fork = function() {
-            var newChain = new ChainLoading();
-            newChain.push(this);
-            return newChain;
-        };
-
         this.state = function() {
             if (currentLevel === undefined) {
                 return 'pending';
@@ -590,6 +551,50 @@
             return promise;
         };
     }
+
+    ChainLoading.prototype.done = ChainLoading.prototype.after = function(func, runAtCurrent) {
+        if (runAtCurrent) {
+            this.add(func);
+        } else {
+            this.push(func);
+        }
+        return this;
+    };
+
+    ChainLoading.prototype.then = function(doneCallbacks, failCallbacks) {
+        var i, l;
+        if (typeof doneCallbacks === 'function') {
+            this.done(doneCallbacks);
+        } else if (doneCallbacks != null) {
+            for (i = 0, l = doneCallbacks.length; i < l; i++) {
+                this.done(doneCallbacks[i]);
+            }
+        }
+        if (typeof failCallbacks === 'function') {
+            this.fail(failCallbacks);
+        } else if (failCallbacks != null) {
+            for (i = 0, l = failCallbacks.length; i < l; i++) {
+                this.fail(failCallbacks[i]);
+            }
+        }
+        return this;
+    };
+
+    ChainLoading.prototype.always = function(func) {
+        //fast-case
+        if (arguments.length === 1) {
+            return this.fail(func).done(func);
+        }
+        var funcs = slice.call(arguments);
+        return this.fail.apply(this, funcs).done.apply(this, funcs);
+    };
+
+    //makes a new chain that's initially based off the of the current level of this chain
+    ChainLoading.prototype.fork = function() {
+        var newChain = new ChainLoading();
+        newChain.push(this);
+        return newChain;
+    };
 
     if (typeof module !== "undefined") {
         module.exports = ChainLoading;
