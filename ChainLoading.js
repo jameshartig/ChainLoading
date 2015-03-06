@@ -1,9 +1,8 @@
-(function(window) {
+(function(window, undefined) {
     var CompletedMap = window.WeakMap,
         slice = [].slice, //from: http://stackoverflow.com/questions/120804/difference-between-array-slice-and-array-slice/121302#121302
         indexOf = [].indexOf,
-        noopThis = function() { return this; },
-        undefined;
+        noopThis = function() { return this; };
 
     //polyfill for WeakMap (we only need set/get)
     if (CompletedMap === undefined) {
@@ -11,7 +10,7 @@
             var arr = [];
             this.has = function(k) {
                 var i = -1;
-                if (k != null) { //only search if they actually gave us something to search for
+                if (k !== undefined) { //only search if they actually gave us something to search for
                     i = arr.length - 1;
                 }
                 while (i >= 0) {
@@ -23,7 +22,9 @@
                 return i > -1;
             };
             this.set = function(k) {
-                arr.push(k);
+                if (k !== undefined) {
+                    arr.push(k);
+                }
             };
         };
     }
@@ -363,12 +364,12 @@
     GroupedDfdPromise.prototype.then = function(doneCallbacks, failCallbacks) {
         if (typeof doneCallbacks === 'function') {
             this.done(doneCallbacks);
-        } else if (doneCallbacks != null) {
+        } else if (doneCallbacks instanceof Array) {
             this.done.apply(this, doneCallbacks);
         }
         if (typeof failCallbacks === 'function') {
             this.fail(failCallbacks);
-        } else if (failCallbacks != null) {
+        } else if (failCallbacks instanceof Array) {
             this.fail.apply(this, failCallbacks);
         }
         return this;
@@ -627,14 +628,14 @@
         var i, l;
         if (typeof doneCallbacks === 'function') {
             this.done(doneCallbacks);
-        } else if (doneCallbacks != null) {
+        } else if (doneCallbacks instanceof Array) {
             for (i = 0, l = doneCallbacks.length; i < l; i++) {
                 this.done(doneCallbacks[i]);
             }
         }
         if (typeof failCallbacks === 'function') {
             this.fail(failCallbacks);
-        } else if (failCallbacks != null) {
+        } else if (failCallbacks instanceof Array) {
             for (i = 0, l = failCallbacks.length; i < l; i++) {
                 this.fail(failCallbacks[i]);
             }
