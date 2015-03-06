@@ -432,18 +432,18 @@
 
         function newLevel() {
             var hasCurrentLevel = currentLevel !== undefined,
-                newLevel = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
+                level = new LevelContainer(self, (!hasCurrentLevel || currentLevel.completed));
             if (globalFailCallbacks !== undefined) {
-                newLevel.addFailCallback(levelFailed);
+                level.addFailCallback(levelFailed);
             }
             if (hasCurrentLevel) {
-                currentLevel.nextLevel = newLevel;
-                newLevel.prevLevel = currentLevel;
+                currentLevel.nextLevel = level;
+                level.prevLevel = currentLevel;
                 //we only need to have the levelFailed on the LAST level, we don't need it on all the levels in between
                 currentLevel.removeFailCallback(levelFailed);
             }
-            currentLevel = newLevel; //advance level
-            return newLevel;
+            currentLevel = level; //advance level
+            return level;
         }
 
         /**
