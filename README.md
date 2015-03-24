@@ -38,7 +38,7 @@ chain.push($.get('http://example.com/2')).done(myCallback2);
 
 ### push(deferred) ###
 Adds the deferred to a new "level". This method returns a deferred that you must call `done`, `then`, `always`, or `fail`
-on to know when the deferred is finished.
+on to know when the deferred is finished. Arguments are passed through from the deferred that completed.
 
 ### add(deferred) ###
 Adds the deferred to the current "level". This method returns a deferred.
@@ -57,8 +57,9 @@ Adds a function to be called once the previous "levels" complete. Useful at the 
 everything completed.
 
 ### fail(func) ###
-Func is called once whenever previous "levels" failed. Useful at the end of all your deferreds for knowing if the chain failed.
-A fail callback added at the very beginning of a chain (before any push's or add's) is called once when ANY level fails.
+`func` is called once whenever previous "levels" failed. Useful at the end of all your deferreds for knowing if the chain failed.
+A fail callback added at the very beginning of a chain (before any push's or add's) is called once when ANY level fails. `func`
+is passed the arguments that were passed to the deferred that failed.
 
 ### promise() ###
 Returns a promise object with `done`, `fail`, `always`, `then` function that map to each of the chain's methods. Useful to

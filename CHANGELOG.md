@@ -1,5 +1,8 @@
 ## Changelog ##
 
+### 1.1.0 ###
+* fail callbacks now get the arguments passed to failed deferred's reject
+* Optimized calling of functions in loops with args arrays
 
 ### 1.0.7 ###
 
