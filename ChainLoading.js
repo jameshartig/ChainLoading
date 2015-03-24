@@ -54,6 +54,38 @@
     }
 
 
+    function callFuncsOptimized(funcs, argsPassed, ctx) {
+        var args = argsPassed || {length: 0},
+            i;
+        switch (args.length) {
+            case 0:
+                for (i = 0; i < funcs.length; i++) {
+                    funcs[i].call(ctx);
+                }
+                break;
+            case 1:
+                for (i = 0; i < funcs.length; i++) {
+                    funcs[i].call(ctx, args[0]);
+                }
+                break;
+            case 2:
+                for (i = 0; i < funcs.length; i++) {
+                    funcs[i].call(ctx, args[0], args[1]);
+                }
+                break;
+            case 3:
+                for (i = 0; i < funcs.length; i++) {
+                    funcs[i].call(ctx, args[0], args[1], args[2]);
+                }
+                break;
+            default:
+                for (i = 0; i < funcs.length; i++) {
+                    funcs[i].apply(ctx, args);
+                }
+                break;
+        }
+    }
+
     function LevelContainer(chain, ready) {
         this.chain = chain;
         this.ready = ready || false; //ready means that we should call any callbacks as soon as they finish
@@ -63,6 +95,7 @@
         this.failCallbacks = [];
         this.nextLevel = null;
         this.prevLevel = null;
+        this.failedArgs = null;
     }
     LevelContainer.prototype.newGroup = function(dfds, stateOnFail, globalCallbacks, completedDeferreds) {
         if (this.state === '') { //if we haven't finished yet and we just added a new group, we're NOT complete
@@ -72,7 +105,7 @@
             level = this,
             group;
         this.dfds.push(o);
-        group = new GroupedDfd(dfds, function(s, g) {
+        group = new GroupedDfd(dfds, function(s, g, args) {
             o.g = g; //store the group on the object, so we can call complete on it
             o.s = 1;
 
@@ -87,10 +120,11 @@
                     //don't overwrite stopped
                     if (level.state !== 'stopped') {
                         level.state = stateOnFail;
+                        level.failedArgs = args;
                     }
                     break;
             }
-            level.complete();
+            level.complete(args);
         }, globalCallbacks, completedDeferreds);
 
         return group;
@@ -101,11 +135,12 @@
     LevelContainer.prototype.optionalDeferreds = function(dfds, globalCallbacks, completedDeferreds) {
         return this.newGroup(dfds, 'ignored', globalCallbacks, completedDeferreds).promise;
     };
+    //this is expected to be called only for the most recent level, otherwise we need to fix failedArgs
     LevelContainer.prototype.addFailCallback = function(f) {
         //if we already failed, immediately call
         //README states that fail() is called whenever previous levels failed
         if (this.state === 'ignored' || this.state === 'rejected') {
-            f.call(this.chain);
+            callFuncsOptimized([f], this.failedArgs, this.chain);
         } else if (!this.completed || this.state === '') {
             this.failCallbacks.push(f);
         }
@@ -116,7 +151,7 @@
             this.failCallbacks.splice(index, 1);
         }
     };
-    LevelContainer.prototype.complete = function() {
+    LevelContainer.prototype.complete = function(originalArgs) {
         if (this.ready !== true) {
             return;
         }
@@ -143,45 +178,44 @@
         }
         //if we're rejected then we cannot continue and call the next level, instead just call failCallbacks
         if (this.state === 'rejected') {
-            this.completeFailed();
+            this.completeFailed(originalArgs);
             return;
         }
         this.cleanup();
         if (this.nextLevel !== null) {
             this.nextLevel.ready = true;
-            this.nextLevel.complete();
+            this.nextLevel.complete(originalArgs);
         }
         this.cleanupLevelRefs();
     };
-    LevelContainer.prototype.completeFailed = function() {
-        for (var i = 0; i < this.failCallbacks.length; i++) {
-            this.failCallbacks[i].call(this.chain);
-            this.failCallbacks.splice(i, 1);
-            i--;
-        }
+    LevelContainer.prototype.completeFailed = function(originalArgs) {
+        this.failedArgs = this.failedArgs || originalArgs;
+        callFuncsOptimized(this.failCallbacks, this.failedArgs, this.chain);
+        this.failCallbacks.splice(0, this.failCallbacks.length);
 
         this.cleanup();
         if (this.nextLevel !== null) {
-            this.nextLevel.completeFailed();
+            this.nextLevel.completeFailed(this.failedArgs);
         }
         this.cleanupLevelRefs();
     };
     LevelContainer.prototype.cleanup = function(cleanupNext) {
         var i, l;
-        for (i = 0; i < this.dfds.length; i++) {
+        for (i = 0, l = this.dfds.length; i < l; i++) {
             this.dfds[i].r = false; //not ready
-            this.dfds.splice(i, 1);
-            i--;
         }
+        this.dfds.splice(0, this.dfds.length);
         this.completed = true;
         //just empty the array
-        for (i = 0, l = this.failCallbacks.length; i < l; i++) {
-            this.failCallbacks.shift();
-        }
+        this.failCallbacks.splice(0, this.failCallbacks.length);
     };
     LevelContainer.prototype.cleanupLevelRefs = function() {
         this.nextLevel = null;
-        this.prevLevel = null;
+        if (this.prevLevel !== null) {
+            //we don't need to keep around the args in previous levels since addFailCallback is only called for newest level
+            this.prevLevel.failedArgs = null;
+            this.prevLevel = null;
+        }
     };
     LevelContainer.prototype.normalizedState = function() {
         //if the state is 'stopped' then it should actually be 'rejected'
@@ -222,7 +256,7 @@
             complete = true;
             //make sure allDfds is empty
             allDfds.length = 0;
-            onComplete(state, resp);
+            onComplete(state, resp, resp.args);
         }
 
         function onResolve() {
@@ -323,36 +357,45 @@
     }
     GroupedDfd.prototype.complete = function(s) {
         var callbacks = this.promise.callbacks,
+            callbackFuncs = [],
             i;
-        if (this.promise.s === 'pending') {
-            this.promise.s = s;
-            this.promise.args = this.args;
+        //set state first so that if someone calls group.done inside of a done callback it'll get handled immediately
+        if (this.promise.s !== 'pending') {
+            return;
+        }
+        this.promise.args = this.args;
+        this.promise.s = s;
+
+        if (callbacks === null) {
+            return;
         }
         for (i = 0; i < callbacks.length; i++) {
             if (callbacks[i].s === this.promise.s) {
-                callbacks[i].f.apply(this.promise.ctx, this.promise.args);
+                callbackFuncs.push(callbacks[i].f);
             }
-            callbacks.splice(i, 1);
-            i--;
         }
+        //we don't need this array anymore
+        this.promise.callbacks = null;
+        callFuncsOptimized(callbackFuncs, this.promise.args, this.promise.ctx);
     };
 
     function GroupedDfdPromise(context) {
         this.ctx = context || this;
         this.s = 'pending';
         this.args = null;
-        this.callbacks = [];
+        this.callbacks = null;
     }
     GroupedDfdPromise.prototype.done = function() {
         var i, l;
         if (this.s === 'resolved') {
-            for (i = 0, l = arguments.length; i < l; i++) {
-                arguments[i].apply(this.ctx, this.args);
-            }
+            callFuncsOptimized(slice.call(arguments), this.args, this.ctx);
         } else if (this.s === 'pending') {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
                     throw new Error('Invalid function sent to done ' + (typeof arguments[i]));
+                }
+                if (this.callbacks === null) {
+                    this.callbacks = [];
                 }
                 this.callbacks.push({s: 'resolved', f: arguments[i]});
             }
@@ -375,13 +418,14 @@
     GroupedDfdPromise.prototype.fail = function() {
         var i, l;
         if (this.s === 'rejected') {
-            for (i = 0, l = arguments.length; i < l; i++) {
-                arguments[i].apply(this.ctx, this.args);
-            }
+            callFuncsOptimized(slice.call(arguments), this.args, this.ctx);
         } else if (this.s === 'pending') {
             for (i = 0, l = arguments.length; i < l; i++) {
                 if (typeof arguments[i] !== 'function') {
                     throw new Error('Invalid function sent to fail ' + (typeof arguments[i]));
+                }
+                if (this.callbacks === null) {
+                    this.callbacks = [];
                 }
                 this.callbacks.push({s: 'rejected', f: arguments[i]});
             }

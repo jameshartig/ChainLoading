@@ -65,7 +65,7 @@ exports.singleFail = function(test) {
         count++;
     })));
     chain.fail(function(one) {
-        test.equal(one, undefined);
+        test.equal(one, 1);
         count++;
     });
 
@@ -139,7 +139,8 @@ exports.twoDfdsFail = function(test) {
         d1 = new $.Deferred(),
         d2 = new $.Deferred();
 
-    chain.push(d1.fail(chain.bind(function() {
+    chain.push(d1.fail(chain.bind(function(one) {
+        test.equal(one, 1);
         test.equal(order++, 0);
     })));
 
@@ -148,7 +149,7 @@ exports.twoDfdsFail = function(test) {
     })));
 
     d2.resolve();
-    d1.reject();
+    d1.reject(1);
     test.equal(order, 1);
     test.done();
 };

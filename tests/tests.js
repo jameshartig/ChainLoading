@@ -29,6 +29,25 @@ exports.singleDeferredDone = function (test) {
     test.done();
 };
 
+exports.singleDeferred5Args = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        count = 0;
+
+    chain.push(d1).done(function(one, two, three, four, five) {
+        test.equal(one, 1);
+        test.equal(two, 2);
+        test.equal(three, 3);
+        test.equal(four, 4);
+        test.equal(five, 5);
+        count++;
+    });
+
+    d1.resolve(1, 2, 3, 4, 5);
+    test.equal(count, 1);
+    test.done();
+};
+
 exports.singleDeferredAlways = function (test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
@@ -84,17 +103,15 @@ exports.singleDeferredThen = function (test) {
 
     chain.push(d1).then(function() {
         test.fail();
-    },
-    function (one) {
+    }, function(one) {
         test.equal(one, 1);
         count++;
     });
 
     chain.then(function() {
         test.fail();
-    },
-    function (undef) {
-        test.equal(undef, undefined);
+    }, function(one) {
+        test.equal(one, 1);
         count++;
     });
 
@@ -169,7 +186,7 @@ exports.singleDeferredFail = function(test) {
         count++;
     }));
     chain.fail(function(one) {
-        test.equal(one, undefined);
+        test.equal(one, 1);
         count++;
     });
 
@@ -257,7 +274,8 @@ exports.twoDeferredsFail = function(test) {
 
     chain.push(d1).fail(function() {
         test.equal(order++, 0);
-    }).fail(function () {
+    }).fail(function(one) {
+        test.equal(one, 1);
         test.equal(order++, 1);
     });
 
@@ -268,7 +286,7 @@ exports.twoDeferredsFail = function(test) {
     });
 
     d2.resolve();
-    d1.reject();
+    d1.reject(1);
     test.equal(order, 2);
     test.done();
 };
@@ -279,11 +297,12 @@ exports.twoDeferredsPreFail = function(test) {
         d1 = new $.Deferred(),
         d2 = new $.Deferred(),
         c;
-    d1.reject();
+    d1.reject(1);
 
     chain.push(d1).fail(function() {
         test.equal(order++, 0);
-    }).fail(function () {
+    }).fail(function(one) {
+        test.equal(one, 1);
         test.equal(order++, 1);
     });
 
@@ -307,6 +326,34 @@ exports.twoDeferredsPreFail = function(test) {
     test.done();
 };
 
+exports.twoDeferredsPreDoneFail = function(test) {
+    var chain = new ChainLoading(),
+        order = 0,
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred();
+
+    chain.push(d1).done(function() {
+        test.equal(order++, 0);
+    }).fail(function() {
+        test.fail();
+    });
+
+    chain.push(d2).fail(function(one) {
+        test.equal(one, 1);
+        test.equal(order++, 1);
+    });
+
+    chain.fail(function(one) {
+        test.equal(one, 1);
+        test.equal(order++, 2);
+    });
+
+    d2.reject(1);
+    d1.resolve();
+    test.equal(order, 3);
+    test.done();
+};
+
 exports.twoDeferredsMiddleFail = function(test) {
     var chain = new ChainLoading(),
         d1 = new $.Deferred(),
@@ -318,11 +365,13 @@ exports.twoDeferredsMiddleFail = function(test) {
         canFail = true;
     });
 
-    d2.reject();
-    c = chain.push(d2).fail(function() {
+    d2.reject(1);
+    c = chain.push(d2).fail(function(one) {
+        test.equal(one, 1);
         test.ok(canFail);
     });
-    c.fail(function() {
+    c.fail(function(one) {
+        test.equal(one, 1);
         test.ok(canFail);
     });
 
@@ -407,7 +456,8 @@ exports.threeDeferredsOneFail = function(test) {
 
     chain.pushIgnoreFail(d1).done(function() {
         test.fail();
-    }).fail(function() {
+    }).fail(function(one) {
+        test.equal(one, 1);
         test.equal(order++, 0);
     });
 
@@ -420,7 +470,7 @@ exports.threeDeferredsOneFail = function(test) {
     });
 
     d2.resolve();
-    d1.reject();
+    d1.reject(1);
     d3.resolve();
     test.equal(order, 3);
     test.done();
@@ -914,7 +964,8 @@ exports.deferredsOneFailedChainFail = function(test) {
 
     chain.push(d1, d2).done(function() {
         test.fail();
-    }).fail(function () {
+    }).fail(function(one) {
+        test.equal(one, 1);
         count++;
     });
 
@@ -922,13 +973,14 @@ exports.deferredsOneFailedChainFail = function(test) {
         test.fail();
     });
 
-    chain.fail(function() {
+    chain.fail(function(one) {
+        test.equal(one, 1);
         count++;
     });
 
     d3.resolve();
     d1.resolve();
-    d2.reject();
+    d2.reject(1);
     test.equal(count, 2);
     test.done();
 };
@@ -1085,5 +1137,89 @@ exports.stopChainMiddle = function(test) {
     d2.resolve();
     chain.stop();
     d1.reject();
+    test.done();
+};
+
+exports.rejectedArgsAfterFail = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        ran = 0,
+        level;
+
+    level = chain.push(d1).fail(function(one) {
+        test.equal(one, 1);
+    });
+
+    d1.reject(1);
+    chain.fail(function(one) {
+        test.equal(one, 1);
+        ran++;
+    });
+    level.fail(function(one) {
+        test.equal(one, 1);
+        ran++;
+    });
+    test.equal(ran, 2);
+    test.done();
+};
+
+exports.failception = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        ran = 0,
+        level;
+
+    level = chain.push(d1).fail(function(one) {
+        test.equal(one, 1);
+    });
+
+    chain.fail(function(one) {
+        ran++;
+        test.equal(one, 1);
+
+        chain.fail(function(one) {
+            test.equal(one, 1);
+            ran++;
+        });
+    });
+    level.fail(function(one) {
+        test.equal(one, 1);
+        ran++;
+        level.fail(function(one) {
+            test.equal(one, 1);
+            ran++;
+        });
+    });
+    d1.reject(1);
+    test.equal(ran, 4);
+    test.done();
+};
+
+exports.failceptionAfterNewLevel = function(test) {
+    var chain = new ChainLoading(),
+        d1 = new $.Deferred(),
+        d2 = new $.Deferred(),
+        ran = 0;
+
+    chain.push(d1).fail(function(one) {
+        test.equal(one, 1);
+    });
+
+    chain.fail(function(one) {
+        ran++;
+        test.equal(one, 1);
+
+        d2.resolve();
+        chain.push(d2).fail(function() {
+            test.fail();
+        });
+
+        chain.fail(function(one) {
+            test.equal(one, 1);
+            ran++;
+        });
+    });
+    d1.reject(1);
+    test.equal(ran, 2);
     test.done();
 };
