@@ -40,6 +40,8 @@ chain.push($.get('http://example.com/2')).done(myCallback2);
 Adds the deferred to a new "level". This method returns a deferred that you must call `done`, `then`, `always`, or `fail`
 on to know when the deferred is finished. Arguments are passed through from the deferred that completed.
 
+Note: `then` does not support chanining. It returns the promise it was called on. Use `chainLoading` for chaining ;)
+
 ### add(deferred) ###
 Adds the deferred to the current "level". This method returns a deferred.
 Order is **not** guaranteed within a "level". If you require order, then always use `push`.
@@ -64,6 +66,8 @@ is passed the arguments that were passed to the deferred that failed.
 ### promise() ###
 Returns a promise object with `done`, `fail`, `always`, `then` function that map to each of the chain's methods. Useful to
 return at the end of a function utilizing a chain so the caller can do `func().done(itsDone)` to know when the function is done.
+
+Note: `then` does not support chanining. It returns the promise it was called on. Use `chainLoading` for chaining ;)
 
 ### state() ###
 Returns the current state of a the chain. It can be `rejected`, `resolved`, or `pending`. If the chain was stopped via `stop()`
