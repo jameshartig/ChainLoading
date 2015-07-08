@@ -289,12 +289,13 @@
         }
         //we need to loop a second time since a deferred could IMMEDATELY resolve
         for (i = 0, l = allDfds.length; i < l && !complete; i++) {
-            if (typeof allDfds[i].d === 'function') {
-                allDfds[i].s = 1;
-                this.promise.done(allDfds[i].d);
-                continue;
-            }
+            //FIRST check for .then since "deferred" returns a "function" for promise
             if (typeof allDfds[i].d.then !== 'function') {
+                if (typeof allDfds[i].d === 'function') {
+                    allDfds[i].s = 1;
+                    this.promise.done(allDfds[i].d);
+                    continue;
+                }
                 throw new Error('Invalid deferred sent to chain');
             }
 
@@ -580,6 +581,9 @@
                 if (this === self || (this instanceof GroupedDfdPromise) || completedDeferreds.has(this)) {
                     f.apply(this, slice.call(arguments));
                 } else {
+                    if (typeof this.state !== 'function') {
+                        throw new Error('You tried to use chain.bind with an unsupported deferred library. See README.md and stop using chain.bind');
+                    }
                     deferredCallbacks.push({d: this, func: f, s: this.state()});
                 }
             };
